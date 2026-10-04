@@ -27,23 +27,31 @@ button:disabled{opacity:.4;cursor:default}
 .node{width:200px;padding:18px;text-align:center}
 .node .ic{margin-bottom:8px}
 /* ---- 戦闘ステージ ---- */
-.stage{position:relative;margin-top:12px;border:4px solid #000;box-shadow:0 0 0 4px var(--line);background:repeating-conic-gradient(#241a38 0 25%,#1e1530 0 50%) 0 0/32px 32px;overflow:hidden}
-.field{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:20px 24px 0;min-height:300px}
+.stage{position:relative;margin-top:12px;border:4px solid #000;box-shadow:0 0 0 4px var(--line);background:#0c0814;overflow:hidden}
+.stage .bg{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:1152px;height:672px;max-width:none;image-rendering:pixelated;z-index:0}
+.field,.bottom,.log{position:relative;z-index:1}
+.field{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:20px 24px 0;min-height:340px}
 .foes{display:flex;gap:10px;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap}
 .unit{width:150px;text-align:center;position:relative;padding-bottom:10px}
-.unit .face{height:96px;display:flex;align-items:flex-end;justify-content:center}
-.foe .face .spr{transform:scaleX(-1)}
+.unit{width:170px}
+.unit .face{position:relative;min-height:128px;display:flex;align-items:flex-end;justify-content:center}
+.unit .face::before{content:'';position:absolute;bottom:-4px;left:50%;width:70%;height:12px;transform:translateX(-50%);background:#0009;clip-path:polygon(8% 0,92% 0,100% 50%,92% 100%,8% 100%,0 50%)}
+.unit .face .spr{position:relative;animation:bob 1.1s steps(1,end) infinite}
+.foe:nth-child(2) .face .spr{animation-delay:-.35s}.foe:nth-child(3) .face .spr{animation-delay:-.7s}
+@keyframes bob{0%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){.unit .face .spr{animation:none}}
+.foe .face .spr{scale:-1 1}
 .foe.dead{opacity:.25;filter:grayscale(1)}
 .foe.target{cursor:pointer}
 .foe.target .face .spr{filter:drop-shadow(4px 0 0 #f0c840) drop-shadow(-4px 0 0 #f0c840) drop-shadow(0 4px 0 #f0c840) drop-shadow(0 -4px 0 #f0c840)}
 .name{font-size:14px;color:var(--muted)}
-.intent{height:28px;font-size:16px;color:#ffd9a0;display:flex;justify-content:center;align-items:center;gap:6px}
+.intent{height:36px;font-size:16px;color:#ffd9a0;display:flex;justify-content:center;align-items:center;gap:6px}
 .hpbar{position:relative;height:20px;background:#3a0e0e;border:4px solid #000;margin:6px 6px 4px;box-shadow:0 0 0 2px var(--line)}
 .hpbar i{position:absolute;left:0;top:0;bottom:0;background:#d8402c;box-shadow:inset 0 -4px 0 #8c2418}
 .hpbar span{position:absolute;inset:0;text-align:center;font-size:12px;line-height:12px;text-shadow:1px 1px 0 #000}
 .hpbar.hasblk{box-shadow:0 0 0 2px var(--orb)}
-.blk{position:absolute;left:-18px;top:-14px;z-index:2;width:24px;height:24px}
-.blk b{position:absolute;inset:0;text-align:center;line-height:22px;font-size:12px;font-weight:normal;color:#fff;text-shadow:1px 1px 0 #000}
+.blk{position:absolute;left:-20px;top:-16px;z-index:2;width:32px;height:32px}
+.blk b{position:absolute;inset:0;text-align:center;line-height:28px;font-size:12px;font-weight:normal;color:#fff;text-shadow:1px 1px 0 #000}
 .status{min-height:20px;font-size:13px;color:var(--muted)}
 .status .spr{margin-right:2px}
 /* ---- 下部 ---- */
@@ -64,7 +72,7 @@ button:disabled{opacity:.4;cursor:default}
 .hand .card.off{filter:brightness(.55) saturate(.6)}
 .log{margin:0;padding:6px 12px;background:#07050c;border-top:4px solid #000;height:62px;overflow:auto;font-size:13px;color:var(--muted)}
 /* ---- カード ---- */
-.card{position:relative;width:132px;height:188px;border:4px solid #000;background:#3a2c40;cursor:pointer;display:flex;flex-direction:column;padding:6px;flex:none}
+.card{position:relative;width:132px;height:200px;border:4px solid #000;background:#3a2c40;cursor:pointer;display:flex;flex-direction:column;padding:6px;flex:none}
 .card.attack{background:#7a2c24;box-shadow:inset 0 0 0 2px #c4584a}
 .card.skill{background:#24603a;box-shadow:inset 0 0 0 2px #4aa86a}
 .card.power{background:#2a4a96;box-shadow:inset 0 0 0 2px #5a8ae0}
@@ -73,13 +81,14 @@ button:disabled{opacity:.4;cursor:default}
 .card .cost{position:absolute;left:-12px;top:-12px;width:30px;height:30px;background:var(--orb);border:4px solid #000;color:#fff;font-size:16px;line-height:22px;text-align:center;box-shadow:inset 2px 2px 0 #9ac4ff}
 .card .nm{text-align:center;font-size:13px;background:#0007;padding:2px 0 2px 14px;margin-bottom:4px;border:2px solid #000}
 .card.rare .nm{color:var(--gold)}.card.uncommon .nm{color:#9cc8ff}
-.card .art{flex:0 0 52px;display:flex;align-items:center;justify-content:center;background:#0005;border:2px solid #000}
+.card .art{flex:0 0 56px;display:flex;align-items:center;justify-content:center;background:#0005;border:2px solid #000}
 .card .typ{font-size:11px;text-align:center;color:#ddd;margin:2px 0}
 .card .tx{flex:1;font-size:13px;line-height:1.3;background:#0006;border:2px solid #000;padding:4px 5px;text-align:center;display:flex;align-items:center;justify-content:center}
 .row .card:hover{transform:translateY(-6px)}
 @media(max-width:700px){
+  .stage .bg{width:960px;height:560px}
   .field{padding:12px 6px 0;min-height:240px}
-  .unit{width:104px}.unit .face{height:64px}.unit .face .spr{zoom:.66}
+  .unit{width:104px}.unit .face{min-height:84px}.unit .face .spr{zoom:.66}
   .bottom{grid-template-columns:1fr 1fr;grid-template-areas:"l r" "h h";padding:0 4px 8px;min-height:0;align-items:start}
   .bottom>.corner:first-child{grid-area:l;flex-direction:row;justify-content:flex-start;padding-left:6px}
   .bottom>.corner:last-child{grid-area:r;flex-direction:row-reverse;justify-content:flex-start;padding-right:6px}
@@ -156,75 +165,387 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[
 const $app = document.getElementById('app');
 const h = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
-/* ===================== ドット絵 ===================== */
-const PAL={k:'#1a1020',w:'#f4f0e8',r:'#d8402c',R:'#8c2418',g:'#4fb04f',G:'#2c7a3c',l:'#9be07a',b:'#4a8ae0',B:'#2a4a98',c:'#b8e4ff',
-  y:'#f0c840',Y:'#b08820',o:'#e88830',p:'#8a5ad0',P:'#523090',n:'#8a5a38',N:'#583420',s:'#f0c8a0',a:'#a8a8b8',A:'#585868'};
-const SPR={
-slime:[
-'................','................','................','................',
-'.....kkkkkk.....','...kkgggggGkk...','..kgglllgggGGk..','..kglllggggggk..',
-'.kggggggggggGGk.','.kgggkkgggkkggk.','.kgggkwgggkwggk.','.kggggggggggGGk.',
-'.kgggggkkkgggGk.','..kgggggggggGk..','..kkGGGGGGGGkk..','...kkkkkkkkkk...'],
-goblin:[
-'................','................','...k........k...','..kgk.kkkk.kgk..',
-'.kgggkggggkgggk.','..kkggggggggkk..','....kgwkkwgk....','....kggggggk....',
-'....kgkwwkgk....','.....kkkkkk.....','....kbbbbbbk....','...kkbbbbbbkk...',
-'..kgkbbyybbkgk..','..kkkbbbbbbkkk..','.....kBkkBk.....','.....kkk.kkk....'],
-bat:[
-'................','................','.k............k.','.kk..........kk.',
-'.kPk........kPk.','.kPPk..kk..kPPk.','.kPPPkkPPkkPPPk.','.kPPPPPPPPPPPPk.',
-'..kPPPPrPPrPPk..','...kPPPPPPPPk...','....kPPwPPwk....','.....kPPPPk.....',
-'......kkkk......','................','................','................'],
-wolf:[
-'................','.kk..........kk.','.kak........kak.','.kaak......kaak.',
-'.kaaakkkkkkaaak.','.kaaaaaaaaaaaak.','.kaayykaakyyaak.','.kaaaaaaaaaaaak.',
-'..kaaaakkaaaak..','..kaaakkkkaaak..','...kaawkkwaak...','....kaaaaaak....',
-'.....kkkkkk.....','................','................','................'],
-knight:[
-'.......kk.......','......kAAk......','.....kAAAAk.....','....kAAAAAAk....',
-'....kAkkkkAk....','....kAArrAAk....','....kAAAAAAk....','...kkkAAAAkkk...',
-'..kAAkaaaakAAk..','..kAAkaaaakAAk..','..kAAkaaaakAAk..','...kkkaaaakkk...',
-'....kAAkkAAk....','....kAAkkAAk....','...kkkkkkkkkk...','................'],
-spider:[
-'................','..o..........o..','...o..kkkk..o...','o...kkppppkk...o',
-'.oo.kppppppk.oo.','..ookprpprpkoo..','...okppppppko...','ooookkppppkkooo.',
-'...okpPPPPpko...','..o.kpPPPPpk.o..','.o..kpPPPPpk..o.','o....kkkkkk....o',
-'................','................','................','................'],
-demon:[
-'k..............k','kk............kk','kRk..........kRk','.kRk.kkkkkk.kRk.',
-'.kRRkrrrrrrkRRk.','..kkrrrrrrrrkk..','...krykrrkyrk...','...krrrrrrrrk...',
-'...krwkwwkwrk...','...krrkkkkrrk...','..kkrrrrrrrrkk..','.krkrrRRRRrrkrk.',
-'.krkrrRRRRrrkrk.','..kkkrrkkrrkkk..','....kkk..kkk....','................'],
-wizard:[
-'.......kk.......','......kppk......','.....kppppk.....','....kppppppk....',
-'...kkkkkkkkkk...','....kssssssk....','....ksksskss....','....kssssssk....',
-'...kppppppppk...','..kpppyppyppppk.','..kpppppppppsk..','..kppppppppppk..',
-'...kkppppppkk...','....kPPkkPPk....','....kkk..kkk....','................'],
-sword:['......kk','.....kwk','....kwk.','.k.kwk..','.kkwk...','..kyk...','.kyk....','kk......'],
-shield:['.kkkkkk.','kbbbbbbk','kbcbbbbk','kbcbbbbk','kbbbbbBk','.kbbbBk.','..kbBk..','...kk...'],
-bolt:['...kkk..','..kyyk..','.kyyk...','kyyyyyk.','..kyyk..','..kyk...','.kyk....','.kk.....'],
-book:['.kkkkkk.','kPPPPPPk','kPwwwwPk','kPPPPPPk','kPwwwwPk','kPPPPPPk','.kkkkkk.','........'],
-str:['...kk...','..krrk..','.krrrrk.','krrrrrrk','..krrk..','..krrk..','..krrk..','..kkkk..'],
-flame:['...k....','..kok...','..kork..','.kooork.','.koyyork','.koyyork','.kooork.','..kkkk..'],
-skull:['.kkkkkk.','kwwwwwwk','kwkwwkwk','kwkwwkwk','kwwwwwwk','.kwkkwk.','.kwkwkwk','..kkkkk.'],
-qmark:['..kkkk..','.kyyyyk.','kyykkyyk','kkk.kyyk','...kyyk.','...kyk..','........','...kyk..'],
-heart:['.kk..kk.','krrkkrrk','krwrrrrk','krrrrrrk','.krrrrk.','..krrk..','...kk...','........'],
-coin:['..kkkk..','.kyyyyk.','kyyYYyyk','kyYyyYyk','kyYyyYyk','kyyYYyyk','.kyyyyk.','..kkkk..'],
-orb:['..kkkk..','.kccbbk.','kcbbbbBk','kcbbbbBk','kbbbbBBk','kbbbBBBk','.kBBBBk.','..kkkk..'],
-star:['...kk...','...kyk..','kkkkyykk','kyyyyyyk','.kyyyyk.','.kyyyyk.','kyyk.kyk','kk....kk'],
+/* ===================== ドット絵エンジン ===================== */
+const hex=c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16));
+const toHex=a=>'#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+const mix=(a,b,t)=>{const x=hex(a),y=hex(b);return toHex(x.map((v,i)=>v+(y[i]-v)*t))};
+const BAY=[[0,.5],[.75,.25]];
+const lvl=(I,n,x,y)=>Math.max(0,Math.min(n-1,Math.round(Math.max(0,Math.min(1,I))*(n-1)+(BAY[y&1][x&1]-.4)*.35)));
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+class Cv{
+  constructor(w,h){this.w=w;this.h=h;this.p=new Array(w*h).fill(null)}
+  set(x,y,c){x=Math.round(x);y=Math.round(y);if(x>=0&&y>=0&&x<this.w&&y<this.h)this.p[y*this.w+x]=c}
+  get(x,y){return x>=0&&y>=0&&x<this.w&&y<this.h?this.p[y*this.w+x]:null}
+  px(x,y,c){this.set(x,y,c)}
+  rect(x,y,w,h,c){for(let j=0;j<h;j++)for(let i=0;i<w;i++)this.set(x+i,y+j,c)}
+  line(x0,y0,x1,y1,c,t=1){
+    x0=Math.round(x0);y0=Math.round(y0);x1=Math.round(x1);y1=Math.round(y1);
+    const dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx+dy;
+    for(;;){for(let j=0;j<t;j++)for(let i=0;i<t;i++)this.set(x0+i,y0+j,c);
+      if(x0===x1&&y0===y1)break;const e2=2*e;if(e2>=dy){e+=dy;x0+=sx}if(e2<=dx){e+=dx;y0+=sy}}
+  }
+  path(pts,c,t=1,joint){for(let i=0;i<pts.length-1;i++)this.line(...pts[i],...pts[i+1],c,t);
+    if(joint)pts.forEach(q=>this.set(q[0],q[1],joint))}
+  sym(fn){fn(x=>x);fn(x=>this.w-1-x)}
+  // list: [{x,y,I}] を陰影つきで描く。右/下の縁は暗い縁取り
+  paint(list,ramp,o={}){
+    const set=new Set(list.map(q=>q.x+','+q.y)),n=ramp.length;
+    for(const q of list){
+      let c=ramp[lvl(q.I,n,q.x,q.y)];
+      if(o.rim!==false){
+        const r=!set.has((q.x+1)+','+q.y),b=!set.has(q.x+','+(q.y+1));
+        const l=!set.has((q.x-1)+','+q.y),t=!set.has(q.x+','+(q.y-1));
+        if(r||b) c=o.rim||ramp[0];
+        else if(o.all&&(l||t)) c=o.rim||ramp[0];
+      }
+      this.set(q.x,q.y,c);
+    }
+  }
+  blob(cx,cy,rx,ry,ramp,o={}){
+    const L=o.light||[-.5,-.6,.62],list=[];
+    for(let y=Math.floor(cy-ry);y<=Math.ceil(cy+ry);y++)for(let x=Math.floor(cx-rx);x<=Math.ceil(cx+rx);x++){
+      const dx=(x-cx)/rx,dy=(y-cy)/ry,r2=dx*dx+dy*dy;if(r2>1)continue;
+      const I=dx*L[0]+dy*L[1]+Math.sqrt(1-r2)*L[2];
+      list.push({x,y,I:(I+.3)/1.3});
+    }
+    this.paint(list,ramp,o);
+  }
+  poly(pts,ramp,o={}){
+    const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+    const x0=Math.floor(Math.min(...xs)),x1=Math.ceil(Math.max(...xs)),y0=Math.floor(Math.min(...ys)),y1=Math.ceil(Math.max(...ys));
+    const lv=o.lv||[-.6,-.8],list=[];let mn=1e9,mx=-1e9;
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+      let ins=false;
+      for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+        const [xi,yi]=pts[i],[xj,yj]=pts[j];
+        if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)ins=!ins;
+      }
+      if(!ins)continue;
+      const p=x*lv[0]+y*lv[1];mn=Math.min(mn,p);mx=Math.max(mx,p);list.push({x,y,I:p});
+    }
+    const span=(mx-mn)||1,lo=o.lo??.1,hi=o.hi??1;
+    list.forEach(q=>q.I=lo+(hi-lo)*(q.I-mn)/span);
+    this.paint(list,ramp,o);
+  }
+  box(xa,ya,xb,yb,ramp,o={}){
+    const x0=Math.min(xa,xb),x1=Math.max(xa,xb),y0=Math.min(ya,yb),y1=Math.max(ya,yb);
+    this.poly([[x0,y0],[x1+.99,y0],[x1+.99,y1+.99],[x0,y1+.99]],ramp,{lv:[-1,-.2],...o});
+  }
+  outline(strength=.84,col='#0a0612'){
+    const q=this.p.slice();
+    for(let y=0;y<this.h;y++)for(let x=0;x<this.w;x++){
+      if(q[y*this.w+x])continue;
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=this.w||ny>=this.h)continue;
+        const n=q[ny*this.w+nx];
+        if(n){this.p[y*this.w+x]=mix(n,col,strength);break}
+      }
+    }
+  }
+  canvas(){
+    const c=document.createElement('canvas');c.width=this.w;c.height=this.h;
+    const x=c.getContext('2d');
+    this.p.forEach((col,i)=>{if(col){x.fillStyle=col;x.fillRect(i%this.w,(i/this.w)|0,1,1)}});
+    return c;
+  }
+}
+/* 色ランプ(暗→明) */
+const R={
+  green:['#10321c','#1c6a30','#30a044','#66d058','#c8f59a'],
+  gob:['#1c3a12','#3a7620','#64aa34','#98d458','#d8f898'],
+  brown:['#241408','#4a2c14','#7a4a24','#a8703c','#d8a468'],
+  dkbrown:['#140a04','#2a180a','#44280e','#5c3a18'],
+  wood:['#2a1608','#5a3414','#8a5a2a','#b88444','#e0b070'],
+  skin:['#6a3a2a','#b86a48','#e8a078','#f8c8a0','#fff0dc'],
+  robe:['#1c1040','#382270','#5a3eb0','#8662e0','#c8b4ff'],
+  bone:['#3a3040','#7a6e78','#bdb2b0','#e8e0d4','#fffaf0'],
+  steel:['#1a1c2c','#3c4258','#68708c','#a0a8c4','#e8eeff'],
+  dsteel:['#0c0e18','#222838','#3c4460','#5e6a8c','#9aa6cc'],
+  gold:['#5a3a10','#a06a18','#e0a828','#f8d850','#fff4a8'],
+  red:['#2c0808','#701414','#b82a1a','#ec5232','#ff9a70'],
+  blue:['#101e48','#1e3c84','#3468cc','#64a0f0','#b8d8ff'],
+  bat:['#140c28','#2c1a5a','#4e30a0','#7a58d0','#b8a0f8'],
+  wing:['#1c1038','#3a2270','#6040a8','#8a64d0'],
+  wolf:['#181a28','#383e54','#68728e','#a2acc4','#e4eaf6'],
+  pink:['#3a1020','#7a2a40','#b84c60'],
+  spider:['#0e0818','#26143c','#46286c','#70469c','#a67ed8'],
+  leg:['#160c24','#34204c','#58388a','#8460bc'],
+  demon:['#260606','#6a1212','#aa2616','#e04a2e','#ff9068'],
+  dwing:['#200808','#4a1010','#7a1c14','#a02c1c'],
+  cloth:['#0c0814','#221838','#3a2a58'],
+  fire:['#7a1008','#c83c10','#f07a18','#ffc030','#fff4a0'],
+  cyan:['#0c2448','#1a5a9c','#38a4e0','#80dcff','#e0f8ff'],
 };
+const SPR={};
+function def(n,w,h,fn){SPR[n]={w,h,fn}}
 const _url={};
 function sprUrl(n){
-  if(_url[n]) return _url[n];
-  const rows=SPR[n],c=document.createElement('canvas');
-  c.width=rows[0].length;c.height=rows.length;
-  const x=c.getContext('2d');
-  rows.forEach((r,y)=>[...r].forEach((ch,i)=>{if(PAL[ch]){x.fillStyle=PAL[ch];x.fillRect(i,y,1,1)}}));
-  return _url[n]=c.toDataURL();
+  if(_url[n])return _url[n];
+  const s=SPR[n],c=new Cv(s.w,s.h);s.fn(c);c.outline();
+  return _url[n]=c.canvas().toDataURL();
 }
 function ico(n,scale=2,cls=''){
-  const r=SPR[n];
-  return `<img class="spr ${cls}" src="${sprUrl(n)}" width="${r[0].length*scale}" height="${r.length*scale}" alt="">`;
+  const s=SPR[n];
+  return `<img class="spr ${cls}" src="${sprUrl(n)}" width="${s.w*scale}" height="${s.h*scale}" alt="">`;
+}
+/* ---------- キャラクター(32x32、魔王のみ48x48) ---------- */
+def('slime',32,32,c=>{
+  const G=R.green;
+  c.blob(16,9,5,4,G);
+  c.blob(16,18,14,11,G);
+  for(let x=0;x<32;x++){if(c.get(x,29))c.set(x,29,null);if(c.get(x,28))c.set(x,28,G[0])}
+  c.blob(9,12,3,2,['#9ee07c','#d8ffc0','#ffffff'],{rim:false});
+  c.px(6,15,'#ffffff');c.px(7,16,'#d8ffc0');
+  for(const ex of [12,21]){
+    c.blob(ex,18,3,4,['#9aa8a0','#e8f0e8','#ffffff']);
+    c.rect(ex,18,2,4,'#0c1820');c.px(ex,18,'#ffffff');
+  }
+  c.line(14,24,18,24,'#0c2410');c.px(13,23,'#0c2410');c.px(19,23,'#0c2410');
+  c.blob(23,24,2,2,[G[2],G[3],G[4]],{rim:false});
+  c.blob(6,24,1,1,[G[3],G[4]],{rim:false});
+});
+def('goblin',32,32,c=>{
+  const G=R.gob,B=R.brown;
+  c.box(11,23,14,28,R.dkbrown);c.box(17,23,20,28,R.dkbrown);
+  c.box(10,28,15,29,B);c.box(16,28,21,29,B);
+  c.poly([[9,14],[22,14],[21,24],[10,24]],B);
+  c.box(10,21,21,22,R.gold);c.rect(15,21,2,2,R.gold[4]);
+  c.box(5,15,8,22,G);c.box(23,15,26,22,G);
+  c.blob(6.5,24,2.5,2.5,G);c.blob(25,24,2.5,2.5,G);
+  c.poly([[26,23],[29,23],[30,8],[26,8]],R.wood,{lv:[-1,0]});
+  c.blob(28,6,4,5,R.wood);
+  c.px(26,4,'#c8ccd8');c.px(30,5,'#c8ccd8');c.px(28,1,'#c8ccd8');c.px(26,8,'#c8ccd8');
+  c.sym(f=>c.poly([[f(10),8],[f(1),3],[f(10),13]],G,{lv:[-.3,-1]}));
+  c.sym(f=>c.poly([[f(8),8],[f(4),5],[f(8),10]],R.pink,{rim:false}));
+  c.blob(16,10,7,6,G);
+  c.rect(12,9,3,2,'#f8e060');c.rect(18,9,3,2,'#f8e060');
+  c.px(13,10,'#10200a');c.px(19,10,'#10200a');
+  c.line(11,7,14,8,'#10200a');c.line(21,7,18,8,'#10200a');
+  c.poly([[16,10],[14,13],[18,13]],G,{rim:false});
+  c.rect(13,15,7,1,'#200a0a');c.px(13,14,'#fff');c.px(19,14,'#fff');
+});
+def('bat',32,32,c=>{
+  const P=R.bat,W=R.wing;
+  c.sym(f=>{
+    c.poly([[f(12),13],[f(2),6],[f(1),14],[f(5),17],[f(6),22],[f(10),19],[f(12),24]],W,{lv:[-.4,-.9]});
+    c.line(f(12),14,f(2),6,P[0]);c.line(f(12),14,f(1),14,P[0]);c.line(f(12),15,f(6),22,P[0]);
+  });
+  c.rect(14,25,2,3,P[1]);c.rect(17,25,2,3,P[1]);
+  c.blob(16,18,5,7,P);
+  c.blob(16,18,3,4,[P[2],P[3],P[4]],{rim:false});
+  c.blob(16,10,5,4,P);
+  c.sym(f=>c.poly([[f(12),9],[f(11),2],[f(15),7]],P));
+  c.rect(13,9,2,2,'#ff3030');c.rect(18,9,2,2,'#ff3030');
+  c.px(13,9,'#ffc0b0');c.px(18,9,'#ffc0b0');
+  c.rect(14,13,1,2,'#ffffff');c.rect(18,13,1,2,'#ffffff');
+});
+def('wolf',32,32,c=>{
+  const G=R.wolf,L=['#5a6480','#98a2bc','#d0d8ec','#f4f8ff'];
+  c.blob(16,28,11,5,G);
+  c.sym(f=>c.poly([[f(6),13],[f(7),1],[f(14),8]],G));
+  c.sym(f=>c.poly([[f(8),11],[f(8),5],[f(11),9]],R.pink,{rim:false}));
+  c.blob(16,16,11,9,G);
+  c.sym(f=>c.poly([[f(5),19],[f(1),25],[f(7),24]],G));
+  c.blob(16,21,6,5,L);
+  c.blob(16,26,4,2,['#14040a','#2a0810','#4a1018'],{rim:false});
+  c.poly([[12,25],[14,25],[13,28]],['#fff'],{rim:false});c.poly([[18,25],[20,25],[19,28]],['#fff'],{rim:false});
+  c.blob(16,18,2,1.5,['#0c0c14','#2a2a38','#4a4a5c']);
+  c.sym(f=>{
+    c.poly([[f(7),13],[f(13),15],[f(12),17],[f(7),16]],['#6a4a00','#e8b800','#ffe860'],{rim:false});
+    c.px(f(11),15,'#180800');c.px(f(11),16,'#180800');
+    c.line(f(6),11,f(13),14,G[0]);
+  });
+  c.line(16,8,16,12,G[1]);
+});
+def('knight',32,32,c=>{
+  const S=R.dsteel,H=R.steel,Gd=R.gold;
+  c.box(11,23,14,29,S);c.box(17,23,20,29,S);
+  c.box(10,28,15,29,H);c.box(16,28,21,29,H);
+  c.poly([[9,12],[23,12],[21,25],[11,25]],S);
+  c.line(11,20,20,20,Gd[2]);c.rect(15,14,2,5,R.red[3]);
+  c.sym(f=>c.box(f(4),14,f(7),22,S));
+  c.box(27,2,28,21,H,{lv:[-1,0]});c.px(27,1,H[4]);
+  c.box(25,22,30,23,Gd);c.box(27,24,28,27,R.brown);c.px(27,28,Gd[3]);
+  c.poly([[1,13],[8,13],[8,23],[4,28],[1,23]],R.blue);
+  c.line(4,15,4,25,Gd[3]);c.line(2,18,7,18,Gd[3]);
+  c.sym(f=>c.blob(f(7),13,4,3,H));
+  c.poly([[15,3],[19,0],[26,1],[24,5],[19,4]],R.red);
+  c.blob(16,8,6,6,S);
+  c.rect(11,8,10,2,'#08060c');
+  for(const x of [13,14,18,19])c.px(x,9,'#ff4030');
+  c.line(16,3,16,7,H[2]);
+});
+def('spider',32,32,c=>{
+  const B=R.spider,Lg=R.leg;
+  c.sym(f=>{
+    c.path([[f(12),10],[f(8),3],[f(3),4],[f(1),10]],Lg[2],1,Lg[3]);
+    c.path([[f(11),12],[f(5),8],[f(1),15],[f(1),21]],Lg[2],1,Lg[3]);
+    c.path([[f(11),15],[f(4),15],[f(2),22],[f(3),28]],Lg[2],1,Lg[3]);
+    c.path([[f(12),18],[f(6),22],[f(5),27],[f(6),30]],Lg[2],1,Lg[3]);
+  });
+  c.blob(16,20,8,8,B);
+  c.poly([[14,15],[18,15],[16,18]],R.red,{rim:false});c.poly([[16,18],[14,22],[18,22]],R.red,{rim:false});
+  c.blob(16,11,5,4,B);
+  c.rect(13,10,2,2,'#ff2a2a');c.rect(17,10,2,2,'#ff2a2a');c.px(11,9,'#ff2a2a');c.px(20,9,'#ff2a2a');
+  c.px(13,10,'#ffc0b0');c.px(17,10,'#ffc0b0');
+  c.rect(14,14,1,2,'#e8e0d4');c.rect(17,14,1,2,'#e8e0d4');
+});
+def('demon',48,48,c=>{
+  const D=R.demon,Bn=R.bone,Fi=R.fire;
+  c.sym(f=>{
+    c.poly([[f(16),22],[f(3),8],[f(1),20],[f(6),24],[f(5),32],[f(11),30],[f(14),36]],R.dwing,{lv:[-.4,-.9]});
+    c.line(f(16),23,f(3),8,D[0]);c.line(f(16),24,f(1),20,D[0]);c.line(f(16),25,f(5),32,D[0]);
+  });
+  c.box(15,34,22,43,D);c.box(26,34,33,43,D);
+  c.box(14,43,22,46,R.dsteel);c.box(26,43,34,46,R.dsteel);
+  c.poly([[16,32],[32,32],[30,40],[24,38],[18,40]],R.cloth);
+  c.blob(24,26,10,10,D);
+  c.blob(19,22,4,3,D);c.blob(29,22,4,3,D);
+  c.line(24,25,24,32,D[0]);c.line(21,28,27,28,D[0]);c.line(21,31,27,31,D[0]);
+  c.sym(f=>{
+    c.blob(f(10),25,4,8,D);c.blob(f(8),33,3,4,D);
+    c.poly([[f(6),36],[f(7),42],[f(9),36]],Bn);c.poly([[f(9),36],[f(10),41],[f(11),36]],Bn);
+  });
+  c.blob(24,13,8,7,D);
+  c.sym(f=>c.poly([[f(17),10],[f(9),9],[f(5),1],[f(12),4],[f(18),6]],Bn));
+  c.sym(f=>{
+    c.poly([[f(17),12],[f(22),13],[f(21),15],[f(17),14]],Fi,{rim:false});c.px(f(20),13,'#ffffff');
+    c.line(f(16),10,f(23),13,D[0]);
+  });
+  c.rect(19,18,10,2,'#1a0408');
+  c.rect(20,17,1,2,'#fff');c.rect(27,17,1,2,'#fff');c.rect(23,19,1,2,'#fff');c.rect(25,19,1,2,'#fff');
+  c.sym(f=>{c.blob(f(5),39,3,4,Fi);c.px(f(5),38,'#fff4a0')});
+});
+def('wizard',32,32,c=>{
+  const Rb=R.robe;
+  c.line(25,9,25,29,R.wood[2],1);c.line(26,9,26,29,R.wood[1],1);
+  c.blob(25.5,6,3.5,3.5,R.cyan);
+  c.box(11,29,14,30,R.dkbrown);c.box(17,29,20,30,R.dkbrown);
+  c.poly([[11,15],[21,15],[25,29],[7,29]],Rb);
+  c.poly([[19,15],[24,17],[24,22],[21,22]],Rb);
+  c.line(10,22,22,22,R.gold[2]);c.rect(15,21,2,3,R.gold[4]);
+  c.blob(24,20,2,2,R.skin);
+  c.poly([[11,15],[7,22],[10,23],[12,18]],Rb);
+  c.blob(8.5,23,2,2,R.skin);
+  c.poly([[11,13],[20,13],[18,21],[15,24],[12,21]],R.bone);
+  c.blob(15.5,12,5,5,R.skin);
+  c.px(13,12,'#1a1020');c.px(18,12,'#1a1020');
+  c.poly([[12,15],[19,15],[17,19],[14,19]],R.bone,{rim:false});
+  c.blob(15.5,9,9,2.5,Rb);
+  c.poly([[11,8],[14,3],[19,1],[23,2],[20,4],[20,8]],Rb);
+  c.line(12,7,19,7,R.gold[2]);c.px(15,5,R.gold[4]);c.px(18,3,R.gold[4]);
+});
+/* ---------- アイコン(16x16) ---------- */
+def('sword',16,16,c=>{
+  c.poly([[5,9],[7,11],[15,3],[14,1]],R.steel,{lv:[-1,-1]});
+  c.poly([[3,6],[4,5],[11,12],[10,13]],R.gold);
+  c.poly([[5,11],[6,12],[3,15],[2,14]],R.brown);
+  c.blob(2,14,1.6,1.6,R.gold);
+});
+def('swords',16,16,c=>{
+  c.sym(f=>{
+    c.poly([[f(3),1],[f(1),3],[f(9),11],[f(11),10]],R.steel,{lv:[-1,-1]});
+    c.poly([[f(8),9],[f(11),12],[f(10),13],[f(7),10]],R.gold);
+    c.poly([[f(11),12],[f(13),14],[f(12),15],[f(10),13]],R.brown);
+  });
+});
+def('hammer',16,16,c=>{
+  c.line(3,14,10,7,R.wood[2],2);c.line(4,14,11,7,R.wood[1],1);
+  c.poly([[7,1],[14,4],[12,8],[5,5]],R.steel,{lv:[-1,-1]});
+});
+def('shield',16,16,c=>{
+  c.poly([[1,1],[15,1],[15,8],[8,15],[1,8]],R.steel,{lv:[-.4,-1]});
+  c.poly([[3,3],[13,3],[13,8],[8,13],[3,8]],R.blue,{rim:false});
+  c.line(8,4,8,11,R.blue[4]);c.line(4,6,12,6,R.blue[4]);
+});
+def('bolt',16,16,c=>{
+  c.poly([[10,0],[3,9],[7,9],[5,15],[13,6],[9,6],[12,0]],R.gold,{lv:[-.7,-.7]});
+});
+def('book',16,16,c=>{
+  c.box(2,2,13,13,R.robe);
+  c.box(4,2,13,12,R.bone,{lv:[-1,0]});
+  c.box(2,2,4,13,R.robe);
+  c.line(6,5,11,5,R.bone[1]);c.line(6,7,11,7,R.bone[1]);c.line(6,9,10,9,R.bone[1]);
+  c.px(3,6,R.gold[3]);c.px(3,9,R.gold[3]);
+});
+def('str',16,16,c=>{
+  c.poly([[8,1],[14,8],[10,8],[10,14],[6,14],[6,8],[2,8]],R.red,{lv:[-.5,-1]});
+});
+def('flame',16,16,c=>{
+  c.poly([[8,0],[12,5],[14,9],[12,14],[8,15],[3,14],[2,9],[5,6],[6,3]],R.fire,{lv:[.3,-1],lo:0,hi:.55});
+  c.poly([[8,6],[11,10],[10,14],[6,14],[5,10]],R.fire,{lv:[-.2,-1],lo:.55,hi:1,rim:false});
+});
+def('skull',16,16,c=>{
+  c.blob(8,7,6,6,R.bone);c.box(5,11,10,14,R.bone);
+  c.blob(5.5,7,1.7,2,['#1a1020']);c.blob(10.5,7,1.7,2,['#1a1020']);
+  c.px(8,10,'#1a1020');c.line(6,13,6,14,R.bone[1]);c.line(8,13,8,14,R.bone[1]);c.line(10,13,10,14,R.bone[1]);
+});
+def('qmark',16,16,c=>{
+  const col=R.gold[3];
+  c.path([[4,5],[5,3],[8,2],[11,3],[12,5],[11,7],[8,9],[8,11]],col,2);
+  c.rect(7,13,3,2,col);c.px(5,3,R.gold[4]);c.px(6,2,R.gold[4]);
+});
+def('heart',16,16,c=>{
+  c.blob(5,5,4,4,R.red);c.blob(11,5,4,4,R.red);
+  c.poly([[1,6],[15,6],[8,15]],R.red);
+  c.px(4,3,'#ffd0c0');c.px(5,3,'#ffd0c0');c.px(3,4,'#ffd0c0');
+});
+def('coin',16,16,c=>{
+  c.blob(8,8,7,7,R.gold);c.blob(8,8,4.5,4.5,[R.gold[1],R.gold[2],R.gold[3]],{rim:false});
+  c.rect(7,5,2,6,R.gold[4]);c.px(5,5,R.gold[4]);
+});
+def('orb',16,16,c=>{
+  c.blob(8,8,7,7,R.blue);c.blob(5,5,2,1.5,['#b8d8ff','#ffffff'],{rim:false});
+});
+def('star',16,16,c=>{
+  const p=[];for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?3.2:7.5;p.push([8+Math.cos(a)*r,8.5+Math.sin(a)*r])}
+  c.poly(p,R.gold,{lv:[-.5,-1]});
+});
+def('drop',16,16,c=>{
+  c.blob(8,10,5,5,R.red);c.poly([[8,0],[12,8],[4,8]],R.red);c.px(6,9,'#ffd0c0');c.px(6,10,'#ffd0c0');
+});
+/* ---------- 背景(192x112。画面には整数倍で表示) ---------- */
+function bgUrl(){
+  if(_url.bg)return _url.bg;
+  const W=192,H=112,c=new Cv(W,H),rnd=mulberry(11),MORT='#0c0814';
+  const stone=['#1c1530','#251c3a','#2e2446','#382c54'];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)c.set(x,y,MORT);
+  for(let row=0;row<7;row++){
+    const off=(row%2)*8;
+    for(let x=-off;x<W;x+=16){
+      const col=stone[Math.floor(rnd()*3)];
+      for(let j=1;j<8;j++)for(let i=1;i<16;i++){
+        let k=col;if(j===1)k=mix(col,'#6a5a90',.25);else if(j===7||i===15)k=mix(col,'#000000',.35);
+        else if(rnd()<.06)k=mix(col,'#6a5a90',.15);
+        c.set(x+i,row*8+j,k);
+      }
+    }
+  }
+  const rows=[[56,6],[62,8],[70,10],[80,12],[92,14],[106,14]];
+  for(let r=0;r<rows.length;r++){
+    const y0=rows[r][0],th=rows[r][1],tw=14+r*4;
+    for(let y=y0;y<Math.min(H,y0+th);y++)for(let x=0;x<W;x++){
+      const tx=Math.floor((x+(r%2)*tw/2)/tw);
+      let col=((tx+r)%2)?'#241a36':'#2c2142';
+      if(y===y0)col='#0a0610';else if(y===y0+1)col=mix(col,'#6a5a90',.2);
+      if((x+(r%2)*tw/2)%tw===0)col='#0a0610';
+      c.set(x,y,col);
+    }
+  }
+  const torch=(tx,ty)=>{
+    c.rect(tx-1,ty+2,3,8,'#4a2c14');c.rect(tx-3,ty+1,7,2,'#68708c');c.rect(tx-2,ty,5,1,'#3c4258');
+    const T=new Cv(9,10);
+    T.poly([[4,0],[7,4],[8,7],[4,9],[1,7],[2,4]],R.fire,{lv:[.2,-1],lo:0,hi:.6});
+    T.poly([[4,4],[6,7],[4,9],[2,7]],R.fire,{lv:[0,-1],lo:.6,hi:1,rim:false});
+    T.p.forEach((col,i)=>{if(col)c.set(tx-4+(i%9),ty-9+((i/9)|0),col)});
+  };
+  torch(64,30);torch(128,30);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const d=Math.hypot((x-W/2)/(W/2),(y-H/2)/(H/2));
+    if(d>.9&&c.get(x,y)){const t=Math.min(.55,(d-.9)*1.4)*(((x+y)&1)?1:.6);c.set(x,y,mix(c.get(x,y),'#000000',t))}
+  }
+  return _url.bg=c.canvas().toDataURL();
 }
 
 /* ===================== ゲーム状態 ===================== */
@@ -252,11 +573,11 @@ function nextChoices(){
 const NODE = {battle:['sword','戦闘'],elite:['skull','強敵'],rest:['flame','休憩所'],event:['qmark','イベント'],boss:['demon','ボス']};
 function header(){
   return `<header><b>ローグライク・カード</b><span>階層 ${run.floor}/${FLOORS}</span>
-  <span>${ico('heart',2)} ${run.hp}/${run.max}</span><span>${ico('coin',2)} ${run.gold}</span><span>${ico('book',2)} ${run.deck.length}枚</span></header>`;
+  <span>${ico('heart',1)} ${run.hp}/${run.max}</span><span>${ico('coin',1)} ${run.gold}</span><span>${ico('book',1)} ${run.deck.length}枚</span></header>`;
 }
 function showMap(){
   $app.innerHTML = header()+`<h2 class="center">進む道を選んでください</h2><div class="row">`+
-    run.choices.map((c,i)=>`<button class="node" data-i="${i}"><div class="ic">${ico(NODE[c][0],SPR[NODE[c][0]].length>8?4:6)}</div>${NODE[c][1]}</button>`).join('')+
+    run.choices.map((c,i)=>`<button class="node" data-i="${i}"><div class="ic">${ico(NODE[c][0],SPR[NODE[c][0]].w>16?2:4)}</div>${NODE[c][1]}</button>`).join('')+
     `</div><div class="center"><button id="deck">デッキを見る</button></div>`;
   $app.querySelectorAll('.node').forEach(b=>b.onclick=()=>enter(run.choices[b.dataset.i]));
   document.getElementById('deck').onclick=()=>showDeck(showMap);
@@ -429,7 +750,9 @@ function intentText(e){
 }
 function cardIcon(c){
   if(c.aoe) return 'flame';
-  if(c.dmg) return 'sword';
+  if(c.hits>1) return 'swords';
+  if(c.dmg) return c.dmg>=14?'hammer':'sword';
+  if(c.self&&!c.dmg) return 'drop';
   if(c.blk) return 'shield';
   if(c.energy) return 'bolt';
   if(c.str) return 'str';
@@ -440,30 +763,30 @@ function cardIcon(c){
 function cardHtml(id,attr='',extra='',style=''){
   const c=CARDS[id];
   return `<div class="card ${c.type} ${c.rar} ${extra}" ${attr} style="${style}"><div class="cost">${c.cost}</div>
-    <div class="nm">${c.name}</div><div class="art">${ico(cardIcon(c),4)}</div>
+    <div class="nm">${c.name}</div><div class="art">${ico(cardIcon(c),3)}</div>
     <div class="typ">${{attack:'アタック',skill:'スキル',power:'パワー'}[c.type]}</div>
     <div class="tx">${cardText(id)}</div></div>`;
 }
 function hpBar(hp,max,block){
-  return `<div class="hpbar ${block?'hasblk':''}">${block?`<div class="blk">${ico('shield',3)}<b>${block}</b></div>`:''}
+  return `<div class="hpbar ${block?'hasblk':''}">${block?`<div class="blk">${ico('shield',2)}<b>${block}</b></div>`:''}
     <i style="width:${Math.max(0,hp/max*100)}%"></i><span>${Math.max(0,hp)}/${max}</span></div>`;
 }
 function renderBattle(){
   const selCard=bt.sel!=null?bt.hand[bt.sel]:null;
-  const status=o=>[o.str?`${ico('str',2)}${o.str}`:'',o.vuln>0?`脆弱${o.vuln}`:'',o.weak>0?`弱体${o.weak}`:''].filter(Boolean).join(' ');
+  const status=o=>[o.str?`${ico('str',1)}${o.str}`:'',o.vuln>0?`脆弱${o.vuln}`:'',o.weak>0?`弱体${o.weak}`:''].filter(Boolean).join(' ');
   const n=bt.hand.length,mid=(n-1)/2;
-  $app.innerHTML = header()+`<div class="stage">
+  $app.innerHTML = header()+`<div class="stage"><img class="bg" src="${bgUrl()}" alt="">
   <div class="field">
-    <div class="unit"><div class="intent"></div><div class="face">${ico('wizard',6)}</div>
+    <div class="unit"><div class="intent"></div><div class="face">${ico('wizard',4)}</div>
       ${hpBar(run.hp,run.max,bt.block)}<div class="status">${status(bt)}</div><div class="name">あなた</div></div>
     <div class="foes">`+bt.enemies.map((e,i)=>`
       <div class="unit foe ${e.hp<=0?'dead':''} ${selCard&&e.hp>0?'target':''}" data-e="${i}">
-        <div class="intent">${e.hp>0?intentText(e):''}</div><div class="face">${ico(e.face,e.key==='demon'?8:6)}</div>
+        <div class="intent">${e.hp>0?intentText(e):''}</div><div class="face">${ico(e.face,4)}</div>
         ${hpBar(e.hp,e.max,e.block)}<div class="status">${status(e)}</div><div class="name">${e.name}</div></div>`).join('')+`
     </div>
   </div>
   <div class="bottom">
-    <div class="corner"><div class="orb ${bt.energy<=0?'empty':''}">${ico('orb',10)}<b>${bt.energy}/3</b></div>
+    <div class="corner"><div class="orb ${bt.energy<=0?'empty':''}">${ico('orb',5)}<b>${bt.energy}/3</b></div>
       <div class="pile">山札<b>${bt.draw.length}</b></div></div>
     <div class="hand">`+bt.hand.map((id,i)=>cardHtml(id,`data-h="${i}"`,
       (CARDS[id].cost>bt.energy||bt.over?'off':'')+(bt.sel===i?' sel':''),
@@ -496,7 +819,7 @@ function reward(gold){
     opts.add(pick(idsByRar(r<rare?'rare':r<rare+unc?'uncommon':'common')));
   }
   const list=[...opts];
-  $app.innerHTML = header()+`<h2 class="center">勝利! ${ico('coin',2)}+${gold}${bt.kind==='elite'?'  最大HP+5':''}</h2>
+  $app.innerHTML = header()+`<h2 class="center">勝利! ${ico('coin',1)}+${gold}${bt.kind==='elite'?'  最大HP+5':''}</h2>
     <p class="center">デッキに加えるカードを1枚選んでください</p>
     <div class="row">`+list.map((id,i)=>cardHtml(id,`data-i="${i}"`)).join('')+`</div>
     <div class="center"><button id="skip">スキップ</button></div>`;
@@ -505,7 +828,7 @@ function reward(gold){
 }
 function gameOver(win){
   $app.innerHTML = `<div class="center"><h1>${win?'魔王を倒した!クリア!':'力尽きた…'}</h1>
-    <p>到達階層: ${run.floor}/${FLOORS}　デッキ: ${run.deck.length}枚　${ico('coin',2)}${run.gold}</p>
+    <p>到達階層: ${run.floor}/${FLOORS}　デッキ: ${run.deck.length}枚　${ico('coin',1)}${run.gold}</p>
     <button id="again">もう一度挑戦</button></div>`;
   document.getElementById('again').onclick=newRun;
 }
