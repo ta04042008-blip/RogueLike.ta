@@ -3,83 +3,91 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
 <title>ローグライク・カード</title>
 <style>
-:root{color-scheme:dark;--bg:#0c0a10;--panel:#1b1722;--line:#46395a;--text:#efe6d2;--muted:#a79bb5;--atk:#b8402f;--skl:#3f8a55;--pow:#3f6fb8;--gold:#e8c14a;--hp:#c0392b;--blk:#5aa0e0;--orb:#2f6fd0}
+:root{color-scheme:dark;--bg:#120c1e;--panel:#241a38;--line:#6a5a8a;--text:#f4f0e8;--muted:#a898c8;--gold:#f0c840;--orb:#4a8ae0}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--text);font-family:"Hiragino Mincho ProN","Noto Serif JP",Georgia,serif;min-height:100vh}
+body{background:var(--bg);color:var(--text);font-family:"DotGothic16","MS Gothic","Osaka-Mono",monospace;font-size:15px;min-height:100vh}
 #app{max-width:1100px;margin:0 auto;padding:0 16px 16px}
-header{display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:10px 4px;border-bottom:1px solid var(--line);font-size:15px}
-header b{color:var(--gold);letter-spacing:.1em;margin-right:auto}
-h2{margin:12px 0}
-button{background:#2a2236;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 16px;font:inherit;cursor:pointer}
-button:hover:not(:disabled){background:#43365a;border-color:var(--gold)}
+.spr{image-rendering:pixelated;image-rendering:crisp-edges;vertical-align:middle;display:inline-block}
+header{display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:10px 4px;border-bottom:4px solid #000;box-shadow:0 4px 0 var(--line)}
+header span{display:inline-flex;gap:6px;align-items:center}
+header b{color:var(--gold);letter-spacing:.1em;margin-right:auto;font-size:18px}
+h2{margin:16px 0;font-weight:normal}
+button{background:#3a2c58;color:var(--text);border:4px solid #000;border-radius:0;padding:8px 16px;font:inherit;cursor:pointer;box-shadow:inset -4px -4px 0 #1c1230,inset 4px 4px 0 #6a5a98}
+button:hover:not(:disabled){background:#54408a}
+button:active:not(:disabled){box-shadow:inset 4px 4px 0 #1c1230}
 button:disabled{opacity:.4;cursor:default}
-:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+:focus-visible{outline:4px solid var(--gold);outline-offset:2px}
 .center{text-align:center}
-.row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+.row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:16px 0}
 .node{width:200px;padding:18px;text-align:center}
-.node .ic{font-size:38px}
+.node .ic{margin-bottom:8px}
 /* ---- 戦闘ステージ ---- */
-.stage{position:relative;margin-top:8px;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#2a2236 0%,#14101b 60%,#0a080d 100%)}
+.stage{position:relative;margin-top:12px;border:4px solid #000;box-shadow:0 0 0 4px var(--line);background:repeating-conic-gradient(#241a38 0 25%,#1e1530 0 50%) 0 0/32px 32px;overflow:hidden}
 .field{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:20px 24px 0;min-height:300px}
-.field::after{content:"";position:absolute;left:0;right:0;top:318px;height:1px;background:linear-gradient(90deg,transparent,#5a4a70,transparent)}
 .foes{display:flex;gap:10px;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap}
 .unit{width:150px;text-align:center;position:relative;padding-bottom:10px}
-.unit .face{font-size:84px;line-height:1.1;filter:drop-shadow(0 8px 6px #000a)}
-.foe .face{transform:scaleX(-1)}
+.unit .face{height:96px;display:flex;align-items:flex-end;justify-content:center}
+.foe .face .spr{transform:scaleX(-1)}
 .foe.dead{opacity:.25;filter:grayscale(1)}
-.foe.target .face{filter:drop-shadow(0 0 14px var(--gold))}
 .foe.target{cursor:pointer}
-.name{font-size:13px;color:var(--muted)}
-.intent{height:28px;font-size:16px;font-weight:bold;color:#ffd9a0;text-shadow:0 1px 2px #000}
-.hpbar{position:relative;height:16px;background:#2b0d0d;border:1px solid #000;border-radius:3px;margin:4px 6px 2px;overflow:hidden}
-.hpbar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#e0523f,#9c2a1d);transition:width .3s}
-.hpbar span{position:relative;font-size:11px;line-height:14px;text-shadow:0 1px 1px #000;font-family:system-ui,sans-serif}
-.hpbar.hasblk{border-color:var(--blk);box-shadow:0 0 0 1px var(--blk)}
-.blk{position:absolute;left:-6px;top:-8px;z-index:1;background:var(--blk);color:#001;border-radius:50% 50% 50% 8px;width:30px;height:30px;line-height:30px;font:bold 14px system-ui,sans-serif;box-shadow:0 2px 4px #000a}
-.status{min-height:18px;font-size:12px;color:var(--muted);font-family:system-ui,sans-serif}
-/* ---- 下部: 手札と山札 ---- */
-.bottom{position:relative;display:grid;grid-template-columns:130px 1fr 130px;align-items:end;padding:0 12px 12px;min-height:250px}
+.foe.target .face .spr{filter:drop-shadow(4px 0 0 #f0c840) drop-shadow(-4px 0 0 #f0c840) drop-shadow(0 4px 0 #f0c840) drop-shadow(0 -4px 0 #f0c840)}
+.name{font-size:14px;color:var(--muted)}
+.intent{height:28px;font-size:16px;color:#ffd9a0;display:flex;justify-content:center;align-items:center;gap:6px}
+.hpbar{position:relative;height:20px;background:#3a0e0e;border:4px solid #000;margin:6px 6px 4px;box-shadow:0 0 0 2px var(--line)}
+.hpbar i{position:absolute;left:0;top:0;bottom:0;background:#d8402c;box-shadow:inset 0 -4px 0 #8c2418}
+.hpbar span{position:absolute;inset:0;text-align:center;font-size:12px;line-height:12px;text-shadow:1px 1px 0 #000}
+.hpbar.hasblk{box-shadow:0 0 0 2px var(--orb)}
+.blk{position:absolute;left:-18px;top:-14px;z-index:2;width:24px;height:24px}
+.blk b{position:absolute;inset:0;text-align:center;line-height:22px;font-size:12px;font-weight:normal;color:#fff;text-shadow:1px 1px 0 #000}
+.status{min-height:20px;font-size:13px;color:var(--muted)}
+.status .spr{margin-right:2px}
+/* ---- 下部 ---- */
+.bottom{position:relative;display:grid;grid-template-columns:130px 1fr 130px;align-items:end;padding:0 12px 12px;min-height:250px;border-top:4px solid #000;background:#0006}
 .corner{display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:6px}
-.orb{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7fb4ff,var(--orb) 55%,#16346b);border:3px solid #cfe0ff;display:flex;align-items:center;justify-content:center;font:bold 26px system-ui,sans-serif;box-shadow:0 0 14px #3a7bff88}
-.orb.empty{filter:grayscale(.9) brightness(.6);box-shadow:none}
-.pile{font-size:12px;color:var(--muted);text-align:center;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:#15111b;font-family:system-ui,sans-serif}
-.pile b{display:block;font-size:20px;color:var(--text)}
-#end{background:#6b3a18;border-color:#e8a24a;font-weight:bold;padding:12px 14px}
-#end:hover:not(:disabled){background:#8a4d1f}
+.orb{position:relative;width:80px;height:80px}
+.orb .spr{position:absolute;inset:0}
+.orb b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:normal;text-shadow:2px 2px 0 #000}
+.orb.empty{filter:grayscale(1) brightness(.6)}
+.pile{font-size:13px;color:var(--muted);text-align:center;border:4px solid #000;box-shadow:0 0 0 2px var(--line);padding:4px 10px;background:var(--panel)}
+.pile b{display:block;font-size:20px;color:var(--text);font-weight:normal}
+#end{background:#8a4d1f;font-size:16px;padding:12px 14px;box-shadow:inset -4px -4px 0 #4a2208,inset 4px 4px 0 #d8883a}
+#end:hover:not(:disabled){background:#a85f28}
 .hand{display:flex;justify-content:center;align-items:flex-end;min-height:230px;padding-top:40px}
 .hand .card{margin:0 -14px;transform:rotate(var(--r,0deg)) translateY(var(--y,0));transform-origin:50% 130%}
-.hand .card:hover:not(.off){transform:rotate(0) translateY(-70px) scale(1.25);z-index:20}
-.hand .card.sel{transform:rotate(0) translateY(-70px) scale(1.25);z-index:20;border-color:var(--gold);box-shadow:0 0 18px var(--gold)}
+.hand .card:hover:not(.off){transform:rotate(0) translateY(-70px) scale(1.2);z-index:20}
+.hand .card.sel{transform:rotate(0) translateY(-70px) scale(1.2);z-index:20;outline:4px solid var(--gold)}
 .hand .card.off{filter:brightness(.55) saturate(.6)}
-.log{margin:0;padding:6px 12px;background:#07060a;border-top:1px solid var(--line);height:58px;overflow:auto;font-size:12px;color:var(--muted);font-family:system-ui,sans-serif}
+.log{margin:0;padding:6px 12px;background:#07050c;border-top:4px solid #000;height:62px;overflow:auto;font-size:13px;color:var(--muted)}
 /* ---- カード ---- */
-.card{position:relative;width:132px;height:188px;border-radius:9px;border:3px solid #1a1320;background:#2a2230;cursor:pointer;display:flex;flex-direction:column;padding:6px;box-shadow:0 4px 10px #000a;transition:transform .12s,box-shadow .12s;flex:none}
-.card.attack{background:linear-gradient(#5a2a24,#2a1512);border-color:#8a3a2e}
-.card.skill{background:linear-gradient(#25492f,#122318);border-color:#3f8a55}
-.card.power{background:linear-gradient(#25396a,#121a33);border-color:#3f6fb8}
-.card.rare{box-shadow:0 0 0 2px var(--gold),0 4px 10px #000a}
-.card.uncommon{box-shadow:0 0 0 2px #7fb0e8,0 4px 10px #000a}
-.card .cost{position:absolute;left:-9px;top:-9px;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7fb4ff,var(--orb) 60%,#16346b);border:2px solid #cfe0ff;font:bold 16px/26px system-ui,sans-serif;text-align:center}
-.card .nm{text-align:center;font-weight:bold;font-size:13px;background:#0006;border-radius:3px;padding:2px 0 2px 14px;margin-bottom:4px}
+.card{position:relative;width:132px;height:188px;border:4px solid #000;background:#3a2c40;cursor:pointer;display:flex;flex-direction:column;padding:6px;flex:none}
+.card.attack{background:#7a2c24;box-shadow:inset 0 0 0 2px #c4584a}
+.card.skill{background:#24603a;box-shadow:inset 0 0 0 2px #4aa86a}
+.card.power{background:#2a4a96;box-shadow:inset 0 0 0 2px #5a8ae0}
+.card.rare{border-color:var(--gold)}
+.card.uncommon{border-color:#9cc8ff}
+.card .cost{position:absolute;left:-12px;top:-12px;width:30px;height:30px;background:var(--orb);border:4px solid #000;color:#fff;font-size:16px;line-height:22px;text-align:center;box-shadow:inset 2px 2px 0 #9ac4ff}
+.card .nm{text-align:center;font-size:13px;background:#0007;padding:2px 0 2px 14px;margin-bottom:4px;border:2px solid #000}
 .card.rare .nm{color:var(--gold)}.card.uncommon .nm{color:#9cc8ff}
-.card .art{flex:0 0 52px;display:flex;align-items:center;justify-content:center;font-size:32px;background:#0004;border:1px solid #0008;border-radius:4px}
-.card .typ{font-size:10px;text-align:center;color:var(--muted);margin:2px 0}
-.card .tx{flex:1;font-size:12px;line-height:1.35;background:#0005;border-radius:4px;padding:4px 5px;text-align:center;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif}
+.card .art{flex:0 0 52px;display:flex;align-items:center;justify-content:center;background:#0005;border:2px solid #000}
+.card .typ{font-size:11px;text-align:center;color:#ddd;margin:2px 0}
+.card .tx{flex:1;font-size:13px;line-height:1.3;background:#0006;border:2px solid #000;padding:4px 5px;text-align:center;display:flex;align-items:center;justify-content:center}
 .row .card:hover{transform:translateY(-6px)}
 @media(max-width:700px){
-  .field{padding:12px 6px 0;min-height:240px}.field::after{top:258px}
-  .unit{width:104px}.unit .face{font-size:54px}
+  .field{padding:12px 6px 0;min-height:240px}
+  .unit{width:104px}.unit .face{height:64px}.unit .face .spr{zoom:.66}
   .bottom{grid-template-columns:1fr 1fr;grid-template-areas:"l r" "h h";padding:0 4px 8px;min-height:0;align-items:start}
   .bottom>.corner:first-child{grid-area:l;flex-direction:row;justify-content:flex-start;padding-left:6px}
   .bottom>.corner:last-child{grid-area:r;flex-direction:row-reverse;justify-content:flex-start;padding-right:6px}
   .hand{grid-area:h;min-height:170px;padding-top:36px;overflow:visible}
-  .orb{width:56px;height:56px;font-size:18px}
+  .orb{width:56px;height:56px}.orb .spr{width:56px;height:56px}.orb b{font-size:15px}
   .hand .card{width:88px;height:132px;margin:0 -22px;padding:4px}
-  .card .cost{width:24px;height:24px;font-size:13px;line-height:20px;left:-7px;top:-7px}
-  .card .art{flex-basis:30px;font-size:20px}.card .tx{font-size:10px;padding:2px}.card .nm{font-size:10px;padding-left:10px}.card .typ{display:none}
+  .card .cost{width:24px;height:24px;font-size:13px;line-height:16px;left:-8px;top:-8px}
+  .card .art{flex-basis:30px}.card .art .spr{zoom:.5}.card .tx{font-size:10px;padding:2px}.card .nm{font-size:10px;padding-left:10px}.card .typ{display:none}
   .hand .card:hover:not(.off),.hand .card.sel{transform:rotate(0) translateY(-40px) scale(1.25)}
   .pile b{font-size:16px}#end{padding:8px 6px;font-size:12px}
 }
@@ -129,13 +137,13 @@ function cardText(id){
   return t.join('。');
 }
 const ENEMIES = {
-  slime:  {name:'スライム',   face:'🟢',hp:[18,24],moves:[{dmg:6},{dmg:4,weak:1},{block:6}]},
-  goblin: {name:'ゴブリン',   face:'👺',hp:[22,28],moves:[{dmg:7},{dmg:7},{str:2},{dmg:5,hits:2}]},
-  bat:    {name:'コウモリ',   face:'🦇',hp:[14,18],moves:[{dmg:3,hits:3},{dmg:5,vuln:1}]},
-  wolf:   {name:'オオカミ',   face:'🐺',hp:[26,32],moves:[{dmg:9},{str:1,block:5},{dmg:6,hits:2}]},
-  knight: {name:'黒騎士',     face:'🛡️',hp:[60,70],elite:1,moves:[{block:12},{dmg:14},{dmg:8,vuln:2},{str:2}]},
-  spider: {name:'大蜘蛛',     face:'🕷️',hp:[52,60],elite:1,moves:[{dmg:6,weak:2},{dmg:4,hits:3},{block:10,str:1},{dmg:12}]},
-  demon:  {name:'魔王',       face:'👹',hp:[140,140],boss:1,moves:[{dmg:12},{str:3,block:10},{dmg:8,hits:3},{dmg:10,vuln:2,weak:2},{dmg:22}]},
+  slime:  {name:'スライム',   face:'slime',hp:[18,24],moves:[{dmg:6},{dmg:4,weak:1},{block:6}]},
+  goblin: {name:'ゴブリン',   face:'goblin',hp:[22,28],moves:[{dmg:7},{dmg:7},{str:2},{dmg:5,hits:2}]},
+  bat:    {name:'コウモリ',   face:'bat',hp:[14,18],moves:[{dmg:3,hits:3},{dmg:5,vuln:1}]},
+  wolf:   {name:'オオカミ',   face:'wolf',hp:[26,32],moves:[{dmg:9},{str:1,block:5},{dmg:6,hits:2}]},
+  knight: {name:'黒騎士',     face:'knight',hp:[60,70],elite:1,moves:[{block:12},{dmg:14},{dmg:8,vuln:2},{str:2}]},
+  spider: {name:'大蜘蛛',     face:'spider',hp:[52,60],elite:1,moves:[{dmg:6,weak:2},{dmg:4,hits:3},{block:10,str:1},{dmg:12}]},
+  demon:  {name:'魔王',       face:'demon',hp:[140,140],boss:1,moves:[{dmg:12},{str:3,block:10},{dmg:8,hits:3},{dmg:10,vuln:2,weak:2},{dmg:22}]},
 };
 const FLOORS = 12;
 const START_DECK = ['strike','strike','strike','strike','strike','defend','defend','defend','defend','bash'];
@@ -147,6 +155,77 @@ const between = ([a,b]) => a+rnd(b-a+1);
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
 const $app = document.getElementById('app');
 const h = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* ===================== ドット絵 ===================== */
+const PAL={k:'#1a1020',w:'#f4f0e8',r:'#d8402c',R:'#8c2418',g:'#4fb04f',G:'#2c7a3c',l:'#9be07a',b:'#4a8ae0',B:'#2a4a98',c:'#b8e4ff',
+  y:'#f0c840',Y:'#b08820',o:'#e88830',p:'#8a5ad0',P:'#523090',n:'#8a5a38',N:'#583420',s:'#f0c8a0',a:'#a8a8b8',A:'#585868'};
+const SPR={
+slime:[
+'................','................','................','................',
+'.....kkkkkk.....','...kkgggggGkk...','..kgglllgggGGk..','..kglllggggggk..',
+'.kggggggggggGGk.','.kgggkkgggkkggk.','.kgggkwgggkwggk.','.kggggggggggGGk.',
+'.kgggggkkkgggGk.','..kgggggggggGk..','..kkGGGGGGGGkk..','...kkkkkkkkkk...'],
+goblin:[
+'................','................','...k........k...','..kgk.kkkk.kgk..',
+'.kgggkggggkgggk.','..kkggggggggkk..','....kgwkkwgk....','....kggggggk....',
+'....kgkwwkgk....','.....kkkkkk.....','....kbbbbbbk....','...kkbbbbbbkk...',
+'..kgkbbyybbkgk..','..kkkbbbbbbkkk..','.....kBkkBk.....','.....kkk.kkk....'],
+bat:[
+'................','................','.k............k.','.kk..........kk.',
+'.kPk........kPk.','.kPPk..kk..kPPk.','.kPPPkkPPkkPPPk.','.kPPPPPPPPPPPPk.',
+'..kPPPPrPPrPPk..','...kPPPPPPPPk...','....kPPwPPwk....','.....kPPPPk.....',
+'......kkkk......','................','................','................'],
+wolf:[
+'................','.kk..........kk.','.kak........kak.','.kaak......kaak.',
+'.kaaakkkkkkaaak.','.kaaaaaaaaaaaak.','.kaayykaakyyaak.','.kaaaaaaaaaaaak.',
+'..kaaaakkaaaak..','..kaaakkkkaaak..','...kaawkkwaak...','....kaaaaaak....',
+'.....kkkkkk.....','................','................','................'],
+knight:[
+'.......kk.......','......kAAk......','.....kAAAAk.....','....kAAAAAAk....',
+'....kAkkkkAk....','....kAArrAAk....','....kAAAAAAk....','...kkkAAAAkkk...',
+'..kAAkaaaakAAk..','..kAAkaaaakAAk..','..kAAkaaaakAAk..','...kkkaaaakkk...',
+'....kAAkkAAk....','....kAAkkAAk....','...kkkkkkkkkk...','................'],
+spider:[
+'................','..o..........o..','...o..kkkk..o...','o...kkppppkk...o',
+'.oo.kppppppk.oo.','..ookprpprpkoo..','...okppppppko...','ooookkppppkkooo.',
+'...okpPPPPpko...','..o.kpPPPPpk.o..','.o..kpPPPPpk..o.','o....kkkkkk....o',
+'................','................','................','................'],
+demon:[
+'k..............k','kk............kk','kRk..........kRk','.kRk.kkkkkk.kRk.',
+'.kRRkrrrrrrkRRk.','..kkrrrrrrrrkk..','...krykrrkyrk...','...krrrrrrrrk...',
+'...krwkwwkwrk...','...krrkkkkrrk...','..kkrrrrrrrrkk..','.krkrrRRRRrrkrk.',
+'.krkrrRRRRrrkrk.','..kkkrrkkrrkkk..','....kkk..kkk....','................'],
+wizard:[
+'.......kk.......','......kppk......','.....kppppk.....','....kppppppk....',
+'...kkkkkkkkkk...','....kssssssk....','....ksksskss....','....kssssssk....',
+'...kppppppppk...','..kpppyppyppppk.','..kpppppppppsk..','..kppppppppppk..',
+'...kkppppppkk...','....kPPkkPPk....','....kkk..kkk....','................'],
+sword:['......kk','.....kwk','....kwk.','.k.kwk..','.kkwk...','..kyk...','.kyk....','kk......'],
+shield:['.kkkkkk.','kbbbbbbk','kbcbbbbk','kbcbbbbk','kbbbbbBk','.kbbbBk.','..kbBk..','...kk...'],
+bolt:['...kkk..','..kyyk..','.kyyk...','kyyyyyk.','..kyyk..','..kyk...','.kyk....','.kk.....'],
+book:['.kkkkkk.','kPPPPPPk','kPwwwwPk','kPPPPPPk','kPwwwwPk','kPPPPPPk','.kkkkkk.','........'],
+str:['...kk...','..krrk..','.krrrrk.','krrrrrrk','..krrk..','..krrk..','..krrk..','..kkkk..'],
+flame:['...k....','..kok...','..kork..','.kooork.','.koyyork','.koyyork','.kooork.','..kkkk..'],
+skull:['.kkkkkk.','kwwwwwwk','kwkwwkwk','kwkwwkwk','kwwwwwwk','.kwkkwk.','.kwkwkwk','..kkkkk.'],
+qmark:['..kkkk..','.kyyyyk.','kyykkyyk','kkk.kyyk','...kyyk.','...kyk..','........','...kyk..'],
+heart:['.kk..kk.','krrkkrrk','krwrrrrk','krrrrrrk','.krrrrk.','..krrk..','...kk...','........'],
+coin:['..kkkk..','.kyyyyk.','kyyYYyyk','kyYyyYyk','kyYyyYyk','kyyYYyyk','.kyyyyk.','..kkkk..'],
+orb:['..kkkk..','.kccbbk.','kcbbbbBk','kcbbbbBk','kbbbbBBk','kbbbBBBk','.kBBBBk.','..kkkk..'],
+star:['...kk...','...kyk..','kkkkyykk','kyyyyyyk','.kyyyyk.','.kyyyyk.','kyyk.kyk','kk....kk'],
+};
+const _url={};
+function sprUrl(n){
+  if(_url[n]) return _url[n];
+  const rows=SPR[n],c=document.createElement('canvas');
+  c.width=rows[0].length;c.height=rows.length;
+  const x=c.getContext('2d');
+  rows.forEach((r,y)=>[...r].forEach((ch,i)=>{if(PAL[ch]){x.fillStyle=PAL[ch];x.fillRect(i,y,1,1)}}));
+  return _url[n]=c.toDataURL();
+}
+function ico(n,scale=2,cls=''){
+  const r=SPR[n];
+  return `<img class="spr ${cls}" src="${sprUrl(n)}" width="${r[0].length*scale}" height="${r.length*scale}" alt="">`;
+}
 
 /* ===================== ゲーム状態 ===================== */
 let run, bt;   // run: 1周の状態, bt: 戦闘状態
@@ -170,14 +249,14 @@ function nextChoices(){
 }
 
 /* ===================== 画面: マップ ===================== */
-const NODE = {battle:['⚔️','戦闘'],elite:['💀','強敵'],rest:['🔥','休憩所'],event:['❓','イベント'],boss:['👹','ボス']};
+const NODE = {battle:['sword','戦闘'],elite:['skull','強敵'],rest:['flame','休憩所'],event:['qmark','イベント'],boss:['demon','ボス']};
 function header(){
   return `<header><b>ローグライク・カード</b><span>階層 ${run.floor}/${FLOORS}</span>
-  <span>❤️ ${run.hp}/${run.max}</span><span>🪙 ${run.gold}</span><span>🃏 ${run.deck.length}枚</span></header>`;
+  <span>${ico('heart',2)} ${run.hp}/${run.max}</span><span>${ico('coin',2)} ${run.gold}</span><span>${ico('book',2)} ${run.deck.length}枚</span></header>`;
 }
 function showMap(){
   $app.innerHTML = header()+`<h2 class="center">進む道を選んでください</h2><div class="row">`+
-    run.choices.map((c,i)=>`<button class="node" data-i="${i}"><div class="ic">${NODE[c][0]}</div>${NODE[c][1]}</button>`).join('')+
+    run.choices.map((c,i)=>`<button class="node" data-i="${i}"><div class="ic">${ico(NODE[c][0],SPR[NODE[c][0]].length>8?4:6)}</div>${NODE[c][1]}</button>`).join('')+
     `</div><div class="center"><button id="deck">デッキを見る</button></div>`;
   $app.querySelectorAll('.node').forEach(b=>b.onclick=()=>enter(run.choices[b.dataset.i]));
   document.getElementById('deck').onclick=()=>showDeck(showMap);
@@ -196,7 +275,7 @@ function enter(kind){
 /* ===================== 休憩所 / イベント ===================== */
 function restSite(){
   const heal=Math.ceil(run.max*0.3);
-  $app.innerHTML = header()+`<h2 class="center">🔥 休憩所</h2><div class="row">
+  $app.innerHTML = header()+`<h2 class="center">休憩所</h2><div class="row">
     <button id="heal">休む(HP+${heal})</button><button id="rm">カードを1枚捨てる</button></div>`;
   document.getElementById('heal').onclick=()=>{run.hp=Math.min(run.max,run.hp+heal);nextChoices()};
   document.getElementById('rm').onclick=()=>pickCard(run.deck,'捨てるカードを選んでください',i=>{run.deck.splice(i,1);nextChoices()},restSite);
@@ -208,13 +287,13 @@ function pickCard(list,title,onPick,onCancel){
   document.getElementById('cancel').onclick=onCancel;
 }
 const EVENTS=[
-  {title:'🌳 癒しの泉',text:'澄んだ泉を見つけた。',opts:[
+  {title:'癒しの泉',text:'澄んだ泉を見つけた。',opts:[
     ['飲む(HP+15)',()=>{run.hp=Math.min(run.max,run.hp+15)}],['立ち去る',()=>{}]]},
-  {title:'🧙 怪しい商人',text:'「HPと引き換えに、強力なカードをやろう」',opts:[
+  {title:'怪しい商人',text:'「HPと引き換えに、強力なカードをやろう」',opts:[
     ['HP8を支払い、レアカードを得る',()=>{run.hp=Math.max(1,run.hp-8);run.deck.push(pick(idsByRar('rare')))}],['断る',()=>{}]]},
-  {title:'💰 宝箱',text:'宝箱だ。罠があるかもしれない。',opts:[
+  {title:'宝箱',text:'宝箱だ。罠があるかもしれない。',opts:[
     ['開ける',()=>{if(rnd(2)){run.gold+=40}else{run.hp=Math.max(1,run.hp-10)}}],['無視する',()=>{}]]},
-  {title:'⛲ 古い祭壇',text:'最大HPを捧げれば力が得られるという。',opts:[
+  {title:'古い祭壇',text:'最大HPを捧げれば力が得られるという。',opts:[
     ['最大HP-6、アンコモンカードを得る',()=>{run.max-=6;run.hp=Math.min(run.hp,run.max);run.deck.push(pick(idsByRar('uncommon')))}],['祈らない',()=>{}]]},
 ];
 function eventSite(){
@@ -342,55 +421,53 @@ function endTurn(){
 }
 function intentText(e){
   const m=e.intent,t=[];
-  if(m.dmg) t.push(`⚔️${calcDmg(m.dmg,e.str,e.weak,bt.vuln)}${m.hits?'×'+m.hits:''}`);
-  if(m.block) t.push(`🛡️${m.block}`);
-  if(m.str) t.push(`💪+${m.str}`);
-  if(m.weak) t.push('弱体付与');
-  if(m.vuln) t.push('脆弱付与');
+  if(m.dmg) t.push(`${ico('sword',2)}${calcDmg(m.dmg,e.str,e.weak,bt.vuln)}${m.hits?'×'+m.hits:''}`);
+  if(m.block) t.push(`${ico('shield',2)}${m.block}`);
+  if(m.str) t.push(`${ico('str',2)}+${m.str}`);
+  if(m.weak||m.vuln) t.push(ico('skull',2));
   return t.join(' ');
 }
 function cardIcon(c){
-  if(c.aoe) return '🔥';
-  if(c.hits>1) return '🗡️';
-  if(c.dmg) return c.dmg>=14?'🔨':'⚔️';
-  if(c.blk) return '🛡️';
-  if(c.energy) return '⚡';
-  if(c.str) return '💪';
-  if(c.weak||c.vuln) return '💢';
-  if(c.draw) return '📖';
-  return '✨';
+  if(c.aoe) return 'flame';
+  if(c.dmg) return 'sword';
+  if(c.blk) return 'shield';
+  if(c.energy) return 'bolt';
+  if(c.str) return 'str';
+  if(c.weak||c.vuln) return 'skull';
+  if(c.draw) return 'book';
+  return 'star';
 }
 function cardHtml(id,attr='',extra='',style=''){
   const c=CARDS[id];
   return `<div class="card ${c.type} ${c.rar} ${extra}" ${attr} style="${style}"><div class="cost">${c.cost}</div>
-    <div class="nm">${c.name}</div><div class="art">${cardIcon(c)}</div>
+    <div class="nm">${c.name}</div><div class="art">${ico(cardIcon(c),4)}</div>
     <div class="typ">${{attack:'アタック',skill:'スキル',power:'パワー'}[c.type]}</div>
     <div class="tx">${cardText(id)}</div></div>`;
 }
 function hpBar(hp,max,block){
-  return `<div class="hpbar ${block?'hasblk':''}">${block?`<div class="blk">${block}</div>`:''}
+  return `<div class="hpbar ${block?'hasblk':''}">${block?`<div class="blk">${ico('shield',3)}<b>${block}</b></div>`:''}
     <i style="width:${Math.max(0,hp/max*100)}%"></i><span>${Math.max(0,hp)}/${max}</span></div>`;
 }
 function renderBattle(){
   const selCard=bt.sel!=null?bt.hand[bt.sel]:null;
-  const status=o=>[o.str?`💪${o.str}`:'',o.vuln>0?`脆弱${o.vuln}`:'',o.weak>0?`弱体${o.weak}`:''].filter(Boolean).join(' ');
+  const status=o=>[o.str?`${ico('str',2)}${o.str}`:'',o.vuln>0?`脆弱${o.vuln}`:'',o.weak>0?`弱体${o.weak}`:''].filter(Boolean).join(' ');
   const n=bt.hand.length,mid=(n-1)/2;
   $app.innerHTML = header()+`<div class="stage">
   <div class="field">
-    <div class="unit"><div class="intent"></div><div class="face">🧙</div>
+    <div class="unit"><div class="intent"></div><div class="face">${ico('wizard',6)}</div>
       ${hpBar(run.hp,run.max,bt.block)}<div class="status">${status(bt)}</div><div class="name">あなた</div></div>
     <div class="foes">`+bt.enemies.map((e,i)=>`
       <div class="unit foe ${e.hp<=0?'dead':''} ${selCard&&e.hp>0?'target':''}" data-e="${i}">
-        <div class="intent">${e.hp>0?intentText(e):''}</div><div class="face">${e.face}</div>
+        <div class="intent">${e.hp>0?intentText(e):''}</div><div class="face">${ico(e.face,e.key==='demon'?8:6)}</div>
         ${hpBar(e.hp,e.max,e.block)}<div class="status">${status(e)}</div><div class="name">${e.name}</div></div>`).join('')+`
     </div>
   </div>
   <div class="bottom">
-    <div class="corner"><div class="orb ${bt.energy<=0?'empty':''}">${bt.energy}/3</div>
+    <div class="corner"><div class="orb ${bt.energy<=0?'empty':''}">${ico('orb',10)}<b>${bt.energy}/3</b></div>
       <div class="pile">山札<b>${bt.draw.length}</b></div></div>
     <div class="hand">`+bt.hand.map((id,i)=>cardHtml(id,`data-h="${i}"`,
       (CARDS[id].cost>bt.energy||bt.over?'off':'')+(bt.sel===i?' sel':''),
-      `--r:${((i-mid)*4).toFixed(1)}deg;--y:${(Math.abs(i-mid)**2*3).toFixed(1)}px;z-index:${i}`)).join('')+`</div>
+      `--r:${((i-mid)*3).toFixed(1)}deg;--y:${(Math.abs(i-mid)**2*3).toFixed(1)}px;z-index:${i}`)).join('')+`</div>
     <div class="corner"><button id="end" ${bt.over?'disabled':''}>ターン終了</button>
       <div class="pile">捨て札<b>${bt.discard.length}</b></div></div>
   </div>
@@ -419,7 +496,7 @@ function reward(gold){
     opts.add(pick(idsByRar(r<rare?'rare':r<rare+unc?'uncommon':'common')));
   }
   const list=[...opts];
-  $app.innerHTML = header()+`<h2 class="center">勝利! 🪙+${gold}${bt.kind==='elite'?'  最大HP+5':''}</h2>
+  $app.innerHTML = header()+`<h2 class="center">勝利! ${ico('coin',2)}+${gold}${bt.kind==='elite'?'  最大HP+5':''}</h2>
     <p class="center">デッキに加えるカードを1枚選んでください</p>
     <div class="row">`+list.map((id,i)=>cardHtml(id,`data-i="${i}"`)).join('')+`</div>
     <div class="center"><button id="skip">スキップ</button></div>`;
@@ -427,8 +504,8 @@ function reward(gold){
   document.getElementById('skip').onclick=nextChoices;
 }
 function gameOver(win){
-  $app.innerHTML = `<div class="center"><h1>${win?'🎉 魔王を倒した!クリア!':'💀 力尽きた…'}</h1>
-    <p>到達階層: ${run.floor}/${FLOORS}　デッキ: ${run.deck.length}枚　🪙${run.gold}</p>
+  $app.innerHTML = `<div class="center"><h1>${win?'魔王を倒した!クリア!':'力尽きた…'}</h1>
+    <p>到達階層: ${run.floor}/${FLOORS}　デッキ: ${run.deck.length}枚　${ico('coin',2)}${run.gold}</p>
     <button id="again">もう一度挑戦</button></div>`;
   document.getElementById('again').onclick=newRun;
 }
