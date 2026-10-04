@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>分子錬成ローグ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#05060f;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  canvas{display:block;position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;image-rendering:pixelated}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+/* =====================================================================
+   分子錬成ローグ  ―  有機化学(高校レベル)×バックパック自動戦闘
+   論理解像度 132x286 のドットを整数倍で拡大表示する
+   ===================================================================== */
+const W = 132, H = 286;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let P = 3, OX = 0, OY = 0, DPR = 1;
+const FONT = '"DotGothic16","Hiragino Kaku Gothic ProN","Meiryo","Noto Sans CJK JP",sans-serif';
+
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  cv.width = Math.floor(innerWidth * DPR);
+  cv.height = Math.floor(innerHeight * DPR);
+  P = Math.max(1, Math.floor(Math.min(cv.width / W, cv.height / H)));
+  OX = Math.floor((cv.width - W * P) / 2);
+  OY = Math.floor((cv.height - H * P) / 2);
+}
+addEventListener('resize', resize);
+resize();
+
+/* ---------- 描画ヘルパ ---------- */
+function R(x, y, w, h, c) {
+  ctx.fillStyle = c;
+  ctx.fillRect(OX + Math.round(x) * P, OY + Math.round(y) * P, w * P, h * P);
+}
+function T(s, x, y, size, col, al, sh) {
+  ctx.font = Math.round(size * P) + 'px ' + FONT;
+  ctx.textAlign = al || 'left';
+  ctx.textBaseline = 'top';
+  const px = OX + Math.round(x) * P, py = OY + Math.round(y) * P;
+  if (sh) { ctx.fillStyle = sh; ctx.fillText(s, px + P, py + P); }
+  ctx.fillStyle = col; ctx.fillText(s, px, py);
+}
+function TO(s, x, y, size, col, al, ol) { // 縁取り文字
+  ctx.font = Math.round(size * P) + 'px ' + FONT;
+  ctx.textAlign = al || 'left'; ctx.textBaseline = 'top';
+  const px = OX + Math.round(x) * P, py = OY + Math.round(y) * P;
+  ctx.fillStyle = ol || '#10102a';
+  for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(s, px + a * P, py + b * P);
+  ctx.fillStyle = col; ctx.fillText(s, px, py);
+}
+function tw(s, size) { ctx.font = Math.round(size * P) + 'px ' + FONT; return ctx.measureText(s).width / P; }
+function fit(s, maxW, size, min) {
+  while (size > (min || 3) && tw(s, size) > maxW) size -= 0.5;
+  return size;
+}
+function wrap(s, maxW, size) {
+  const out = []; let cur = '';
+  for (const ch of s) {
+    if (tw(cur + ch, size) > maxW) { out.push(cur); cur = ch; } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function mkSprite(rows, pal) {
+  const w = Math.max(...rows.map(r => r.length)), h = rows.length;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  rows.forEach((r, y) => { for (let x = 0; x < w; x++) { const k = r[x]; if (k && pal[k]) { g.fillStyle = pal[k]; g.fillRect(x, y, 1, 1); } } });
+  return withFlash(c);
+}
+function withFlash(c) {
+  const f = document.createElement('canvas'); f.width = c.width; f.height = c.height;
+  const g = f.getContext('2d'); g.drawImage(c, 0, 0);
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = '#fff'; g.fillRect(0, 0, f.width, f.height);
+  return { c, f, w: c.width, h: c.height };
+}
+function S(sp, x, y, o) {
+  o = o || {};
+  const sc = o.scale || 1;
+  ctx.imageSmoothingEnabled = false;
+  const img = o.flash ? sp.f : sp.c;
+  const dx = OX + Math.round(x) * P, dy = OY + Math.round(y) * P;
+  ctx.save();
+  if (o.alpha != null) ctx.globalAlpha = o.alpha;
+  if (o.flip) {
+    ctx.translate(dx + sp.w * sc * P, dy); ctx.scale(-1, 1);
+    ctx.drawImage(img, 0, 0, sp.w * sc * P, sp.h * sc * P);
+  } else ctx.drawImage(img, dx, dy, sp.w * sc * P, sp.h * sc * P);
+  ctx.restore();
+}
+
+/* 3x5 ドットフォント (化学記号用) */
+const GLY = {
+  C: '111100100100111', O: '111101101101111', H: '101101111101101', N: '101111111101101',
+  l: '010010010010011', '2': '111001111100111', '+': '000010111010000',
+  '1': '010110010010111', '3': '111001111001111', '4': '101101111001001'
+};
+function GL(str, x, y, col) {
+  let cx = x;
+  for (const ch of str) {
+    const g = GLY[ch]; if (!g) { cx += 4; continue; }
+    for (let i = 0; i < 15; i++) if (g[i] === '1') R(cx + (i % 3), y + Math.floor(i / 3), 1, 1, col || '#fff');
+    cx += 4;
+  }
+}
+
+/* ---------- 小物アイコン ---------- */
+const ICON = {
+  sword: mkSprite(['......s', '.....ss', 's...ss.', 'ss.ss..', '.sss...', '..s....', '.bs.b..', 'b......'.slice(0, 7)], { s: '#e8f0ff', b: '#a8743c' }),
+  heart: mkSprite(['.rr.rr.', 'rrrrrrr', 'rrrrrrr', '.rrrrr.', '..rrr..', '...r...'], { r: '#ff4a5a' }),
+  shield: mkSprite(['bbbbbb', 'bwwwwb', 'bwwwwb', 'bwwwwb', '.bwwb.', '..bb..'], { b: '#2a90c0', w: '#8ae0ff' }),
+  book: mkSprite(['.bbbbbb.', 'bwbwwwwb', 'bwbwwwwb', 'bwbwwwwb', 'bwbwwwwb', '.bbbbbb.'], { b: '#c8a0ff', w: '#ffffff' }),
+  spk: mkSprite(['...w...', '..ww...', 'www.w..', 'www..w.', 'www.w..', '..ww...', '...w...'], { w: '#ffffff' }),
+  gear: mkSprite(['..w.w..', '.wwwww.', 'ww...ww', '.w...w.', 'ww...ww', '.wwwww.', '..w.w..'], { w: '#d0c8ff' })
+};
+
+/* ---------- ヒーロー/敵スプライト ---------- */
+const HERO = mkSprite([
+  '...b..........b.....',
+  '...bb........bb.....',
+  '....bb......bb......',
+  '.....KKKKKKKKKK.....',
+  '....KKKKKKKKKKKK....',
+  '....KKwwKKKKwwKK....',
+  '....KKwwKKKKwwKK....',
+  '....KKKKKKKKKKKK....',
+  '.....KKKKKKKKKK.....',
+  '....dddddddddddd....',
+  '...dbbbbbbbbbbbbd...',
+  '..dbbBBbbbbbbwwwwd..',
+  '..dbbbbbbbbbwBBBBd..',
+  '..dbbbbbbbbbwBBBBBd.',
+  '..dbbbbbbbbbwBBwwBd.',
+  '...dbbbbbbbbwBBwwBd.',
+  '...dbbbbbbbbbwBBBd..',
+  '....dbbbbbbbbbwBd...',
+  '....dddddddddddd....',
+  '.....KK......KK.....',
+  '.....KK......KK.....',
+  '....KKK......KKK....',
+  '...KKKK......KKKK...',
+  '...KKKK......KKKK...'
+], { K: '#12121f', b: '#2f6be0', B: '#8fd2ff', w: '#ffffff', d: '#1b3fa8' });
+
+const EPAL = [
+  { mid: '#78cfc6', light: '#a8f0e6', dark: '#2a6a74', spike: '#f2ffff' },
+  { mid: '#c58ae8', light: '#e8c0ff', dark: '#5a2a7a', spike: '#fff0ff' },
+  { mid: '#e8a860', light: '#ffd8a0', dark: '#7a4a1a', spike: '#fff4e0' },
+  { mid: '#e87a7a', light: '#ffb0b0', dark: '#7a2a3a', spike: '#fff0f0' },
+  { mid: '#8aa8f0', light: '#c0d4ff', dark: '#2a3a8a', spike: '#f0f4ff' }
+];
+const _spCache = {};
+function enemySprite(shape, pi) {
+  const key = shape + pi;
+  if (_spCache[key]) return _spCache[key];
+  const pal = EPAL[pi % EPAL.length];
+  const w = 22, h = 19;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const px = (x, y, col) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); };
+  const cx = 10.5, cy = 11.5;
+  const mask = [];
+  for (let y = 0; y < h; y++) {
+    mask[y] = [];
+    for (let x = 0; x < w; x++) {
+      let m = false;
+      if (shape === 'blob') m = Math.pow((x - cx) / 10, 2) + Math.pow((y - cy) / 6.6, 2) <= 1;
+      else if (shape === 'slime') m = y >= 5 && y <= 17 && Math.pow((x - cx) / 10.3, 2) + Math.pow((y - 14) / 9, 2) <= 1;
+      else { // ghost
+        const top = Math.pow((x - cx) / 8.5, 2) + Math.pow((y - 9) / 8, 2) <= 1 && y <= 9;
+        const bot = y > 9 && y <= 17 - (Math.floor(x / 3) % 2) * 2 && Math.abs(x - cx) <= 8.5;
+        m = top || bot;
+      }
+      mask[y][x] = m;
+    }
+  }
+  if (shape === 'blob') { // 背中のトゲ
+    for (const k of [-7, -3, 1, 5]) {
+      const sx = Math.round(cx + k), top = k % 2 ? 3 : 1;
+      for (let t = 0; t < 5; t++) for (let u = -Math.floor(t / 2); u <= Math.floor(t / 2); u++) {
+        const yy = top + t + 2 - (k === -3 || k === 5 ? 0 : 0);
+        if (yy < h && !mask[yy][sx + u] && yy < 8) px(sx + u, yy, pal.spike);
+      }
+    }
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!mask[y][x]) continue;
+    const edge = !(mask[y - 1] && mask[y - 1][x]) || !(mask[y + 1] && mask[y + 1][x]) || !mask[y][x - 1] || !mask[y][x + 1];
+    px(x, y, edge ? pal.dark : ((x - cx) + (y - cy) < -5 ? pal.light : pal.mid));
+  }
+  if (shape === 'slime') { // ツノ
+    for (const k of [-6, 5]) { g.fillStyle = pal.spike; g.fillRect(Math.round(cx) + k, 2, 2, 4); g.fillStyle = pal.light; g.fillRect(Math.round(cx) + k, 2, 1, 1); }
+  }
+  const ey = shape === 'slime' ? 11 : shape === 'ghost' ? 8 : 9;
+  for (const ex of [Math.round(cx) - 6, Math.round(cx) + 3]) {
+    g.fillStyle = '#0b1a2e'; g.fillRect(ex, ey, 3, 4);
+    px(ex, ey, '#fff'); px(ex + 1, ey + 3, '#3a6a8a');
+  }
+  g.fillStyle = pal.dark; g.fillRect(Math.round(cx) - 2, ey + 6, 4, 1);
+  return (_spCache[key] = withFlash(c));
+}
+
+/* ---------- 背景(エリア別) ---------- */
+const AREAS = [
+  { name: '炭素の森', sky: ['#0a1030', '#1d3878'], tree: '#070a1e', plat: ['#6a52b8', '#3a2c7a', '#251c58'] },
+  { name: '水酸基の沼', sky: ['#06201e', '#10504a'], tree: '#031412', plat: ['#4c9a84', '#2c6a5a', '#1c4a40'] },
+  { name: '酸の洞窟', sky: ['#1e0e06', '#6a3c12'], tree: '#100803', plat: ['#b8844a', '#7a5028', '#4a3018'] },
+  { name: '芳香族の街', sky: ['#200a2c', '#5e1c70'], tree: '#12051a', plat: ['#a050b0', '#6a2a7a', '#421a52'] }
+];
+const _bgCache = {};
+function bgFor(ai) {
+  if (_bgCache[ai]) return _bgCache[ai];
+  const a = AREAS[ai % AREAS.length];
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const hx = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+  const A = hx(a.sky[0]), B = hx(a.sky[1]);
+  const bands = 22;
+  for (let i = 0; i < bands; i++) {
+    const t = i / (bands - 1);
+    g.fillStyle = 'rgb(' + [0, 1, 2].map(k => Math.round(lerp(A[k], B[k], t))).join(',') + ')';
+    g.fillRect(0, Math.floor(i * H / bands), W, Math.ceil(H / bands) + 1);
+  }
+  let seed = 7 + ai * 31;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(255,255,255,' + (0.15 + rnd() * 0.35) + ')'; g.fillRect(Math.floor(rnd() * W), Math.floor(rnd() * 120), 1, 1); }
+  // 枯れ木のシルエット
+  g.fillStyle = a.tree;
+  for (const bx of [-2, 22, 52, 84, 112]) {
+    const th = 70 + Math.floor(rnd() * 50), tw0 = 5 + Math.floor(rnd() * 3);
+    g.fillRect(bx, H - th - 40, tw0, th + 40);
+    let by = H - th - 40;
+    for (let k = 0; k < 6; k++) {
+      const dir = rnd() < 0.5 ? -1 : 1, len = 6 + Math.floor(rnd() * 14);
+      let x = bx + (dir > 0 ? tw0 : 0), y = by + k * 11;
+      for (let s = 0; s < len; s++) { g.fillRect(x, y, 2, 2); x += dir; if (s % 2) y -= 1; }
+    }
+  }
+  // 地面の霧
+  for (let y = 0; y < 10; y++) { g.fillStyle = 'rgba(' + hx(a.sky[1]).join(',') + ',' + (0.05 + y * 0.02) + ')'; g.fillRect(0, 118 + y * 2, W, 2); }
+  // 舞台
+  for (let dy = 0; dy < 12; dy++) {
+    const wd = Math.round(124 * Math.sqrt(1 - Math.pow((dy - 0) / 12, 2)) * 0.5 + 8);
+    const col = dy < 2 ? a.plat[0] : dy < 7 ? a.plat[1] : a.plat[2];
+    g.fillStyle = col; g.fillRect(66 - wd, 124 + dy, wd * 2, 1);
+  }
+  return (_bgCache[ai] = c);
+}
+
+/* =====================================================================
+   データ定義
+   ===================================================================== */
+const GC = 7, GR = 5, PITCH = 14, GX = 6, GY = 185;
+const ALK = ['', 'メタン', 'エタン', 'プロパン', 'ブタン'];
+const ENE = ['', '', 'エテン', 'プロペン', 'ブテン'];
+const OL = ['', 'メタノール', 'エタノール', 'プロパノール', 'ブタノール'];
+const ALD = ['', 'ホルムアルデヒド', 'アセトアルデヒド', 'プロピオンアルデヒド', 'ブチルアルデヒド'];
+const ACID = ['', 'ギ酸', '酢酸', 'プロピオン酸', '酪酸'];
+const AMN = ['', 'メチルアミン', 'エチルアミン', 'プロピルアミン', 'ブチルアミン'];
+const CLN = ['', 'クロロメタン', 'クロロエタン', 'クロロプロパン', 'クロロブタン'];
+const DCL = ['', '', '1,2-ジクロロエタン', '1,2-ジクロロプロパン', '1,2-ジクロロブタン'];
+const AAC = ['', '', 'グリシン', 'アラニン', 'アミノ酪酸'];
+const ALKYL = ['', 'メチル', 'エチル', 'プロピル', 'ブチル'];
+const POLY = ['', '', 'ポリエチレン', 'ポリプロピレン', 'ポリブテン'];
+
+const GNAME = {
+  OH: ['ヒドロキシ基', '-OH'], COOH: ['カルボキシ基', '-COOH'], NH2: ['アミノ基', '-NH₂'],
+  CHO: ['ホルミル基', '-CHO'], Cl: ['塩素', '-Cl']
+};
+const GCOL = {
+  OH: ['#e04a4a', '#7a1c24', '#ff9a8a'], COOH: ['#e8902c', '#7a4010', '#ffd080'],
+  NH2: ['#4a7ee8', '#1c2f7a', '#9ac0ff'], CHO: ['#d8c030', '#6a5a10', '#fff090'],
+  Cl: ['#3cc060', '#14502a', '#9af0a8'], O2: ['#38c8d8', '#124a58', '#a0f4ff'], CAT: ['#a050d8', '#40186a', '#e0a8ff']
+};
+
+/* 反応図鑑 */
+const RX = [
+  { id: 'ester', name: 'エステル化', eq: 'R-COOH + R\'-OH → R-COO-R\' + H₂O', d: ['カルボン酸とアルコールが脱水縮合。', '濃硫酸が触媒。果実の香りの元。'], col: '#ffd040' },
+  { id: 'amide', name: 'アミド結合', eq: 'R-COOH + R\'-NH₂ → R-CO-NH-R\' + H₂O', d: ['カルボン酸とアミンが縮合。', 'ナイロンやタンパク質の結合。'], col: '#6ac8ff' },
+  { id: 'peptide', name: 'ペプチド結合', eq: 'アミノ酸 + アミノ酸 → ジペプチド + H₂O', d: ['アミノ酸どうしがアミド結合でつながる。', 'つながるほど巨大分子に。'], col: '#ff8ad8' },
+  { id: 'poly', name: '付加重合', eq: 'n CH₂=CH₂ → (-CH₂-CH₂-)n', d: ['二重結合が開き、次々つながる。', 'ポリエチレンなどの高分子。'], col: '#ff7a3a' },
+  { id: 'add', name: '付加反応', eq: 'CH₂=CH₂ + Cl₂ → CH₂Cl-CH₂Cl', d: ['C=Cの二重結合にハロゲンが付加。', '二重結合は不飽和の目印。'], col: '#7aff8a' },
+  { id: 'sub', name: '置換反応', eq: 'CH₄ + Cl₂ → CH₃Cl + HCl', d: ['アルカンは光でHがClに置換される。', '(付加ではなく置換)'], col: '#a0e060' },
+  { id: 'comb', name: '燃焼', eq: 'CH₄ + 2O₂ → CO₂ + 2H₂O', d: ['有機物は酸素と反応してCO₂とH₂Oに。'], col: '#ff5a3a' },
+  { id: 'ox1', name: '酸化①', eq: 'R-CH₂OH → R-CHO', d: ['第一級アルコールが酸化されると', 'アルデヒドになる(還元性あり)。'], col: '#ffe070' },
+  { id: 'ox2', name: '酸化②', eq: 'R-CHO → R-COOH', d: ['アルデヒドがさらに酸化されると', 'カルボン酸になる。'], col: '#ffa040' },
+  { id: 'dehyd', name: '脱水反応', eq: 'C₂H₅OH → CH₂=CH₂ + H₂O', d: ['エタノールを濃硫酸と170℃に加熱。', '分子内脱水でエチレンが生成。'], col: '#8ac0ff' },
+  { id: 'arom', name: '芳香族の置換', eq: 'C₆H₆ + Cl₂ → C₆H₅Cl + HCl', d: ['ベンゼン環は安定。付加でなく置換が', '起こる。-OHでフェノールなど。'], col: '#d8a0ff' }
+];
+const RXI = {}; RX.forEach(r => RXI[r.id] = r);
+
+/* =====================================================================
+   セーブ
+   ===================================================================== */
+const SAVE_KEY = 'molrogue.v1';
+let save = { codex: {}, best: 0, runs: 0 };
+try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s) save = Object.assign(save, s); } catch (e) { }
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
+
+/* =====================================================================
+   ピース
+   ===================================================================== */
+let UID = 1;
+const mkChain = (n, ene) => ({ id: UID++, t: 'chain', n, ene: !!ene, rot: 0, x: -1, y: -1 });
+const mkGroup = g => ({ id: UID++, t: 'group', g, rot: 0, x: -1, y: -1 });
+const mkRing = () => ({ id: UID++, t: 'ring', rot: 0, x: -1, y: -1 });
+const mkO2 = () => ({ id: UID++, t: 'o2', rot: 0, x: -1, y: -1 });
+const mkCat = () => ({ id: UID++, t: 'cat', rot: 0, x: -1, y: -1 });
+
+function cellsOf(p) {
+  if (p.t === 'chain') { const a = []; for (let i = 0; i < p.n; i++) a.push(p.rot ? [0, i] : [i, 0]); return a; }
+  if (p.t === 'ring') return [[0, 0], [1, 0], [0, 1], [1, 1]];
+  return [[0, 0]];
+}
+function dimsOf(p) {
+  if (p.t === 'chain') return p.rot ? [1, p.n] : [p.n, 1];
+  if (p.t === 'ring') return [2, 2];
+  return [1, 1];
+}
+function pieceInfo(p) {
+  switch (p.t) {
+    case 'chain':
+      return p.ene
+        ? { name: ENE[p.n] + '(C=C)', desc: '炭素' + p.n + '個。二重結合で威力+30%。重合・付加の素材になる。' }
+        : { name: ALK[p.n], desc: '炭素' + p.n + '個。基本攻撃力は炭素数×5。長いほど遅い。' };
+    case 'group': {
+      const d = {
+        OH: '隣の鎖に吸収(与ダメの25%回復)。カルボン酸と並べてエステル化。',
+        COOH: '隣の鎖に腐食(敵の被ダメ+15%)。アルコールやアミンと反応。',
+        NH2: '隣の鎖が+40%。カルボン酸と並べるとアミド結合。',
+        CHO: '隣の鎖に会心30%(還元性)。酸化でカルボン酸に。',
+        Cl: '隣の鎖に毒。C=Cなら付加反応、アルカンなら置換反応。'
+      };
+      return { name: GNAME[p.g][0] + ' ' + GNAME[p.g][1], desc: d[p.g] };
+    }
+    case 'ring': return { name: 'ベンゼン環', desc: '一定間隔でシールド。隣の鎖+30%。官能基で置換される。' };
+    case 'o2': return { name: '酸素 O₂', desc: 'アルカンは燃焼×1.7。アルコールは4秒ごとに酸化が進む。' };
+    case 'cat': return { name: '触媒 濃硫酸', desc: 'エステル化・重合×1.5。孤立アルコールは脱水してC=Cに。' };
+  }
+}
+
+/* =====================================================================
+   盤面評価(シナジー計算)
+   ===================================================================== */
+const OXI = 4;
+function buildOcc(ps) {
+  const o = Array.from({ length: GR }, () => Array(GC).fill(null));
+  for (const p of ps) for (const [dx, dy] of cellsOf(p)) o[p.y + dy][p.x + dx] = p;
+  return o;
+}
+function neighborsOf(ps) {
+  const o = buildOcc(ps), m = new Map();
+  for (const p of ps) {
+    const s = new Set();
+    for (const [dx, dy] of cellsOf(p)) for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const x = p.x + dx + ax, y = p.y + dy + ay;
+      if (x < 0 || y < 0 || x >= GC || y >= GR) continue;
+      const q = o[y][x]; if (q && q !== p) s.add(q);
+    }
+    m.set(p, s);
+  }
+  return m;
+}
+const tri = k => k * (k + 1) / 2;
+
+function evaluate(ps) {
+  const nb = neighborsOf(ps);
+  const ev = { eff: new Map(), chains: [], rings: [], rx: {}, mols: [], power: 0 };
+  const addRx = (id, label, e) => {
+    const r = ev.rx[id] || (ev.rx[id] = { id, n: 0, labels: [] });
+    if (label !== null) { r.n++; r.labels.push(label); }
+    if (e && !e.rxs.includes(id)) e.rxs.push(id);
+  };
+  for (const p of ps) if (p.t === 'chain') {
+    const near = [...nb.get(p)];
+    const e = {
+      p, n: p.n, ene: p.ene, groups: new Set(near.filter(q => q.t === 'group').map(q => q.g)),
+      hasOx: near.some(q => q.t === 'o2'), cat: near.some(q => q.t === 'cat'),
+      ringAdj: near.filter(q => q.t === 'ring').length, nbChains: [],
+      mult: 1, heal: 0, crit: 0, poison: 0, shieldHit: 0, acid: false, rxs: [],
+      hadOH: false, ester: false, amide: false, amino: false, addc: false
+    };
+    e.hadOH = e.groups.has('OH');
+    ev.eff.set(p, e); ev.chains.push(e);
+  }
+  for (const e of ev.chains) e.nbChains = [...nb.get(e.p)].filter(q => q.t === 'chain').map(q => ev.eff.get(q));
+
+  // 1) 酸化 (O2 + アルコール)
+  for (const e of ev.chains) {
+    if (e.hasOx && e.hadOH && !e.ene) {
+      const s = e.p.stg | 0;
+      if (s >= 1) { e.groups.delete('OH'); e.groups.add(s === 1 ? 'CHO' : 'COOH'); addRx(s === 1 ? 'ox1' : 'ox2', ALD[e.n] ? (s === 1 ? OL[e.n] + '→' + ALD[e.n] : ALD[e.n] + '→' + ACID[e.n]) : '', e); }
+      else addRx('ox1', OL[e.n] + '(酸化待機)', e);
+    }
+  }
+  // 2) エステル化
+  for (const a of ev.chains) {
+    if (a.ester || !a.groups.has('OH') || a.groups.has('COOH')) continue;
+    for (const b of a.nbChains) {
+      if (b.ester || b === a || !b.groups.has('COOH')) continue;
+      const m = 2 * ((a.cat || b.cat) ? 1.5 : 1);
+      a.mult *= m; b.mult *= m; a.ester = b.ester = true;
+      addRx('ester', ACID[b.n] + ALKYL[a.n], a); addRx('ester', null, b);
+      ev.mols.push(ACID[b.n] + ALKYL[a.n]);
+      break;
+    }
+  }
+  // 3) 脱水 (孤立アルコール+触媒)
+  for (const e of ev.chains) {
+    if (e.cat && e.groups.has('OH') && !e.ester && e.n >= 2 && !e.ene) {
+      e.groups.delete('OH'); e.ene = true; e.dehyd = true; addRx('dehyd', OL[e.n] + '→' + ENE[e.n], e);
+    }
+  }
+  // 4) Cl: 付加/置換
+  for (const e of ev.chains) {
+    if (!e.groups.has('Cl')) continue;
+    if (e.ene) { e.mult *= 1.8; e.poison += 0.8; e.addc = true; addRx('add', DCL[e.n], e); }
+    else { e.poison += 0.5; addRx('sub', CLN[e.n], e); }
+  }
+  // 5) 付加重合
+  const seen = new Set();
+  for (const e of ev.chains) {
+    if (!e.ene || e.addc || seen.has(e)) continue;
+    const comp = [], st = [e]; seen.add(e);
+    while (st.length) { const c = st.pop(); comp.push(c); for (const o of c.nbChains) if (o.ene && !o.addc && !seen.has(o)) { seen.add(o); st.push(o); } }
+    if (comp.length >= 2) {
+      const cat = comp.some(c => c.cat), m = tri(comp.length) * (cat ? 1.5 : 1);
+      const same = comp.every(c => c.n === comp[0].n);
+      const nm = same ? POLY[comp[0].n] : '共重合体';
+      for (const c of comp) { c.mult *= m; addRx('poly', null, c); }
+      addRx('poly', nm + '×' + comp.length);
+      ev.mols.push(nm + '×' + comp.length);
+    }
+  }
+  // 6) アミノ酸/ペプチド/アミド
+  for (const e of ev.chains) if (e.groups.has('COOH') && e.groups.has('NH2') && e.n >= 2) { e.amino = true; e.mult *= 1.5; }
+  const seen2 = new Set();
+  for (const e of ev.chains) {
+    if (!e.amino || seen2.has(e)) continue;
+    const comp = [], st = [e]; seen2.add(e);
+    while (st.length) { const c = st.pop(); comp.push(c); for (const o of c.nbChains) if (o.amino && !seen2.has(o)) { seen2.add(o); st.push(o); } }
+    if (comp.length >= 2) {
+      const m = tri(comp.length);
+      for (const c of comp) { c.mult *= m; c.shieldHit += 0.3; addRx('peptide', null, c); }
+      addRx('peptide', 'ペプチド×' + comp.length);
+      ev.mols.push(comp.length === 2 ? 'ジペプチド' : comp.length === 3 ? 'トリペプチド' : 'ポリペプチド');
+    }
+  }
+  for (const a of ev.chains) {
+    if (a.amide || a.amino || !a.groups.has('COOH')) continue;
+    for (const b of a.nbChains) {
+      if (b.amide || b.amino || b === a || !b.groups.has('NH2')) continue;
+      a.mult *= 1.6; b.mult *= 1.6; a.shieldHit += 0.4; b.shieldHit += 0.4; a.amide = b.amide = true;
+      addRx('amide', ACID[a.n] + 'アミド', a); addRx('amide', null, b);
+      ev.mols.push('アミド(' + ACID[a.n] + ')');
+      break;
+    }
+  }
+  // 7) 燃焼
+  for (const e of ev.chains) {
+    if (e.hasOx && !e.hadOH) { e.mult *= 1.7; e.poison += 0.3; addRx('comb', (e.ene ? ENE[e.n] : ALK[e.n]) + 'の燃焼', e); }
+  }
+  // 8) ベンゼン環
+  for (const p of ps) if (p.t === 'ring') {
+    const near = [...nb.get(p)];
+    const gs = new Set(near.filter(q => q.t === 'group').map(q => q.g));
+    const r = { p, groups: gs, mult: 1, name: 'ベンゼン', rxs: [] };
+    r.mult *= Math.pow(1.4, gs.size);
+    r.name = gs.has('COOH') ? '安息香酸' : gs.has('OH') ? 'フェノール' : gs.has('NH2') ? 'アニリン' : gs.has('CHO') ? 'ベンズアルデヒド' : gs.has('Cl') ? 'クロロベンゼン' : 'ベンゼン';
+    if (gs.size) { addRx('arom', r.name); r.rxs.push('arom'); ev.mols.push(r.name); }
+    ev.rings.push(r); ev.eff.set(p, r);
+    for (const q of near) if (q.t === 'chain') { const ce = ev.eff.get(q); if (!ce.ringHit) { ce.ringHit = true; ce.mult *= 1.3; } }
+  }
+  // 9) 官能基の基本効果
+  for (const e of ev.chains) {
+    if (e.groups.has('OH')) e.heal = 0.25;
+    if (e.groups.has('COOH')) e.acid = true;
+    if (e.groups.has('NH2')) e.mult *= 1.4;
+    if (e.groups.has('CHO')) e.crit = 0.3;
+    if (e.ene) e.mult *= 1.3;
+    e.name = chainName(e);
+    ev.mols.push(e.name);
+  }
+  ev.mols = [...new Set(ev.mols)];
+  return ev;
+}
+function chainName(e) {
+  const g = e.groups, n = e.n;
+  if (g.has('COOH') && g.has('NH2') && n >= 2) return AAC[n];
+  if (g.has('COOH')) return ACID[n];
+  if (g.has('CHO')) return ALD[n];
+  if (g.has('OH')) return OL[n];
+  if (g.has('NH2')) return AMN[n];
+  if (g.has('Cl')) return e.addc ? DCL[n] : CLN[n];
+  return e.ene ? ENE[n] : ALK[n];
+}
+
+/* =====================================================================
+   ゲーム状態
+   ===================================================================== */
+const Gm = {
+  phase: 'prep', stage: 1, tray: [], pieces: [], ev: null, enemy: null, hero: null,
+  speed: 1, B: null, rewards: [], codexPage: 0, over: null, toasts: [], tipT: 0, sound: true, msg: ''
+};
+const GROW = 1.25;
+const gMult = (s) => Math.pow(GROW, (s == null ? Gm.stage : s) - 1);
+const heroMax = (s) => Math.round(100 * Math.pow(1.35, (s == null ? Gm.stage : s) - 1));
+const TRAY_N = 8;
+
+function fmt(n) {
+  n = Math.floor(n);
+  if (n < 10000) return '' + n;
+  const u = ['', '万', '億', '兆', '京', '垓'];
+  let i = 0, v = n;
+  while (v >= 10000 && i < u.length - 1) { v /= 10000; i++; }
+  let s = v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0);
+  s = s.replace(/\.0+$|(\.\d*[1-9])0+$/, '$1');
+  return s + u[i];
+}
+const baseDmg = e => 5 * e.n;
+const cdOf = e => 1.5 + 0.15 * e.n;
+const dmgOf = e => baseDmg(e) * e.mult * gMult();
+const ringShield = r => 14 * r.mult * gMult();
+
+function powerOf(ev) {
+  let s = 0;
+  for (const e of ev.chains) s += dmgOf(e) / cdOf(e) * (1 + e.crit) * 2;
+  for (const r of ev.rings) s += ringShield(r) / 2;
+  return Math.round(s);
+}
+
+function recompute() {
+  Gm.ev = evaluate(Gm.pieces);
+  for (const e of Gm.ev.chains) e.p.oxOn = e.hasOx && e.hadOH && !e.ene;
+  for (const id in Gm.ev.rx) discover(id);
+  Gm.power = powerOf(Gm.ev);
+}
+function discover(id) {
+  if (!save.codex[id]) {
+    save.codex[id] = 1; persist();
+    Gm.toasts.push({ t: 2.6, text: 'NEW! ' + RXI[id].name, col: RXI[id].col });
+    beep(660, 0.1, 'square', 0.04); setTimeout(() => beep(880, 0.15, 'square', 0.04), 90);
+  }
+}
+
+/* ---------- 敵生成 ---------- */
+const ENAMES = [['ガイコツ暴徒', 'blob'], ['メタンスライム', 'slime'], ['炭素ゴースト', 'ghost'], ['アルカン兵', 'blob'], ['ベンゼンバット', 'ghost'],
+  ['硫酸スライム', 'slime'], ['水酸基ゴブリン', 'blob'], ['アミノ小僧', 'ghost'], ['ポリマーゴーレム', 'blob'], ['ハロゲンの影', 'ghost'], ['エステルの精', 'slime']];
+function genEnemy(s) {
+  const boss = s % 12 === 0;
+  const [name, shape] = boss ? ['巨大ガイコツ王', 'blob'] : ENAMES[(s * 7 + 3) % ENAMES.length];
+  const hp = Math.round(90 * Math.pow(1.6, s - 1) * (boss ? 2.5 : 1));
+  const nItems = Math.min(3, 1 + Math.floor((s - 1) / 4)) + (boss ? 1 : 0);
+  const kinds = [
+    { k: 'club', w: 2, h: 1, cd: 2.4, m: 1.0 }, { k: 'dagger', w: 1, h: 2, cd: 1.2, m: 0.45 }, { k: 'fang', w: 1, h: 1, cd: 1.8, m: 0.7 }
+  ];
+  const items = [], occ = {};
+  for (let i = 0; i < nItems; i++) {
+    const kd = kinds[(s + i * 2) % 3];
+    for (let tries = 0; tries < 30; tries++) {
+      const cx = Math.floor(Math.random() * (6 - kd.w + 1)), cy = Math.floor(Math.random() * (5 - kd.h + 1));
+      let ok = true;
+      for (let a = 0; a < kd.w; a++) for (let b = 0; b < kd.h; b++) if (occ[(cx + a) + ',' + (cy + b)]) ok = false;
+      if (!ok) continue;
+      for (let a = 0; a < kd.w; a++) for (let b = 0; b < kd.h; b++) occ[(cx + a) + ',' + (cy + b)] = 1;
+      items.push({ kd, cx, cy, t: kd.cd * (0.5 + i * 0.2), dmg: 6 * Math.pow(1.38, s - 1) * kd.m * (boss ? 1.3 : 1), flash: 0 });
+      break;
+    }
+  }
+  return { name, shape, pal: ((s - 1) >> 1) % EPAL.length, hp, max: hp, boss, items, flash: 0, lunge: 0, shake: 0 };
+}
+
+/* ---------- 新しいラン ---------- */
+function newRun() {
+  Gm.stage = 1; Gm.over = null; Gm.pieces = []; Gm.tray = Array(TRAY_N).fill(null);
+  const start = mkChain(3, false); start.x = 2; start.y = 2; Gm.pieces.push(start);
+  [mkChain(2, false), mkChain(2, false), mkGroup('OH'), mkGroup('COOH'), mkCat()].forEach((p, i) => Gm.tray[i] = p);
+  Gm.hero = { hp: heroMax(1), max: heroMax(1), shield: 0, lunge: 0, flash: 0 };
+  Gm.enemy = genEnemy(1);
+  Gm.phase = 'prep'; Gm.B = null; ui.held = null;
+  save.runs++; persist();
+  recompute();
+}
+
+/* =====================================================================
+   バトル
+   ===================================================================== */
+function startBattle() {
+  if (!Gm.ev.chains.length) { Gm.msg = '攻撃用の炭素鎖を盤面に置こう'; Gm.msgT = 2; return; }
+  if (ui.held) cancelHeld();
+  const hero = Gm.hero; hero.shield = 0;
+  for (const p of Gm.pieces) { p.oxT = 0; p.stg = 0; p.flash = 0; p.cd = 0.4 + Math.random() * 0.6; }
+  recompute();
+  for (const e of Gm.ev.chains) e.p.cd = cdOf(e) * 0.5;
+  for (const r of Gm.ev.rings) r.p.cd = 1.0;
+  Gm.B = { t: 0, time: 30, over: null, endT: 0, poison: 0, pt: 0.5, acid: 0, pops: [], fx: [], shake: 0, dust: [] };
+  Gm.phase = 'battle';
+  beep(300, 0.1, 'square', 0.04);
+}
+function pop(x, y, text, col, size) { Gm.B.pops.push({ x, y, text, col, size: size || 5, t: 0.9 }); }
+function pieceCenter(p) {
+  const [w, h] = dimsOf(p);
+  return [GX + p.x * PITCH + (w * PITCH - 1) / 2, GY + p.y * PITCH + (h * PITCH - 1) / 2];
+}
+const ENEMY_POS = () => ({ x: Gm.enemy.boss ? 78 : 96, y: Gm.enemy.boss ? 128 - 38 : 128 - 19 });
+
+function hitEnemy(d, crit, p, kind) {
+  const en = Gm.enemy, B = Gm.B;
+  en.hp -= d; if (kind !== 'poison') { en.flash = 0.1; en.shake = 0.12; }
+  const ep = ENEMY_POS();
+  if (kind === 'poison') pop(ep.x + 6 + Math.random() * 8, ep.y - 2, fmt(d), '#c070ff', 4);
+  else pop(ep.x + 4 + Math.random() * 10, ep.y - 4 - Math.random() * 6, fmt(d), crit ? '#ffe040' : '#ffffff', crit ? 6.5 : 5);
+  if (p) {
+    const [cx, cy] = pieceCenter(p);
+    pop(cx - 6, cy - 5, '+' + fmt(d), crit ? '#ffe040' : '#ffd8a8', 4.5);
+  }
+  if (kind !== 'poison') B.fx.push({ k: 'slash', x: ep.x + 3, y: ep.y + 4, t: 0.2 });
+}
+function hitHero(d) {
+  const h = Gm.hero, B = Gm.B;
+  const s = Math.min(h.shield, d); h.shield -= s; d -= s;
+  h.hp -= d; h.flash = 0.1;
+  B.shake = 0.1;
+  pop(34, 100, '-' + fmt(d + s), '#ff6a6a', 5);
+}
+
+function battleStep(dt) {
+  const B = Gm.B, hero = Gm.hero, en = Gm.enemy;
+  if (B.over) {
+    B.endT += dt;
+    if (B.endT > 1.4) endBattle();
+    return;
+  }
+  B.t += dt; B.time -= dt;
+  // 酸化の進行
+  let re = false;
+  for (const p of Gm.pieces) if (p.t === 'chain' && p.oxOn) {
+    p.oxT += dt;
+    const ns = Math.min(2, Math.floor(p.oxT / OXI));
+    if (ns !== p.stg) { p.stg = ns; re = true; }
+  }
+  if (re) {
+    recompute();
+    for (const e of Gm.ev.chains) if (e.p.oxOn && e.p.stg > 0) { const [cx, cy] = pieceCenter(e.p); pop(cx - 4, cy - 8, e.name, '#ffe070', 4); }
+    beep(520, 0.08, 'triangle', 0.04);
+  }
+  // 分子の攻撃
+  for (const e of Gm.ev.chains) {
+    const p = e.p; p.cd -= dt;
+    if (p.flash > 0) p.flash -= dt;
+    if (p.cd <= 0) {
+      p.cd += cdOf(e);
+      let d = dmgOf(e), crit = Math.random() < e.crit;
+      if (crit) d *= 2;
+      if (B.acid > 0) d *= 1.15;
+      d = Math.max(1, Math.round(d));
+      p.flash = 0.18; hero.lunge = 0.2;
+      hitEnemy(d, crit, p);
+      if (e.heal) { const hv = Math.round(d * e.heal); hero.hp = Math.min(hero.max, hero.hp + hv); pop(26, 96, '+' + fmt(hv), '#6aff8a', 4); }
+      if (e.shieldHit) { const sv = Math.round(d * e.shieldHit); hero.shield += sv; pop(18, 90, '+' + fmt(sv), '#6ad0ff', 4); }
+      if (e.poison) B.poison += d * e.poison;
+      if (e.acid) B.acid = 4;
+      beep(crit ? 700 : 200 + Math.random() * 60, 0.05, 'square', 0.03);
+      if (en.hp <= 0) break;
+    }
+  }
+  // ベンゼン環のシールド
+  for (const r of Gm.ev.rings) {
+    r.p.cd -= dt; if (r.p.flash > 0) r.p.flash -= dt;
+    if (r.p.cd <= 0) {
+      r.p.cd += 2; r.p.flash = 0.2;
+      const v = Math.round(ringShield(r)); hero.shield += v;
+      const [cx, cy] = pieceCenter(r.p); pop(cx - 4, cy - 6, '+' + fmt(v), '#6ad0ff', 4.5);
+      if (r.groups.has('OH')) { const hv = Math.round(hero.max * 0.02); hero.hp = Math.min(hero.max, hero.hp + hv); }
+    }
+  }
+  if (B.acid > 0) B.acid -= dt;
+  B.pt -= dt;
+  if (B.pt <= 0) { B.pt += 0.5; if (B.poison > 1) { const x = B.poison * 0.2; B.poison -= x; hitEnemy(Math.max(1, Math.ceil(x)), false, null, 'poison'); } }
+  // 敵の攻撃
+  if (en.hp > 0) for (const it of en.items) {
+    it.t -= dt; if (it.flash > 0) it.flash -= dt;
+    if (it.t <= 0) { it.t += it.kd.cd; it.flash = 0.2; en.lunge = 0.2; hitHero(Math.max(1, Math.round(it.dmg))); beep(110, 0.08, 'sawtooth', 0.03); }
+  }
+  // 演出タイマー
+  for (const k of ['lunge']) { if (hero[k] > 0) hero[k] -= dt; if (en[k] > 0) en[k] -= dt; }
+  if (hero.flash > 0) hero.flash -= dt;
+  if (en.flash > 0) en.flash -= dt;
+  if (en.shake > 0) en.shake -= dt;
+  if (B.shake > 0) B.shake -= dt;
+  // 決着
+  if (en.hp <= 0) { en.hp = 0; B.over = 'win'; beep(523, 0.12, 'square', 0.05); setTimeout(() => beep(659, 0.12, 'square', 0.05), 110); setTimeout(() => beep(784, 0.25, 'square', 0.05), 220); }
+  else if (hero.hp <= 0) { hero.hp = 0; B.over = 'lose'; B.why = '力尽きた…'; beep(120, 0.4, 'sawtooth', 0.05); }
+  else if (B.time <= 0) { B.time = 0; B.over = 'lose'; B.why = '時間切れ…'; beep(120, 0.4, 'sawtooth', 0.05); }
+}
+function popsStep(dt) {
+  const B = Gm.B; if (!B) return;
+  for (const p of B.pops) { p.t -= dt; p.y -= dt * 9; }
+  B.pops = B.pops.filter(p => p.t > 0);
+  for (const f of B.fx) f.t -= dt;
+  B.fx = B.fx.filter(f => f.t > 0);
+}
+
+function endBattle() {
+  const B = Gm.B;
+  if (B.over === 'win') {
+    Gm.stage++;
+    Gm.hero.max = heroMax(); Gm.hero.hp = Math.min(Gm.hero.max, Math.round(Gm.hero.hp * 1.3 + Gm.hero.max * 0.5)); Gm.hero.shield = 0;
+    Gm.rewards = genRewards();
+    Gm.phase = 'reward';
+    for (const p of Gm.pieces) { p.stg = 0; p.oxT = 0; }
+    recompute();
+  } else {
+    save.best = Math.max(save.best, Gm.stage); persist();
+    Gm.over = { why: B.why }; Gm.phase = 'over';
+  }
+}
+function genRewards() {
+  const pool = [];
+  const add = (w, f) => { for (let i = 0; i < w; i++) pool.push(f); };
+  for (let n = 1; n <= 4; n++) { add(5 - Math.abs(n - 2.5) * 1.2 | 0 || 2, () => mkChain(n, false)); if (n >= 2) add(3, () => mkChain(n, true)); }
+  for (const g of ['OH', 'COOH', 'NH2', 'CHO', 'Cl']) add(5, () => mkGroup(g));
+  add(4, mkRing); add(4, mkO2); add(4, mkCat);
+  const out = [], keys = new Set();
+  let guard = 0;
+  while (out.length < 3 && guard++ < 80) {
+    const p = pool[Math.floor(Math.random() * pool.length)]();
+    const k = p.t + (p.n || '') + (p.ene ? 'e' : '') + (p.g || '');
+    if (keys.has(k)) continue; keys.add(k); out.push(p);
+  }
+  return out;
+}
+
+/* =====================================================================
+   入力
+   ===================================================================== */
+const ui = { held: null, px: 0, py: 0, downX: 0, downY: 0, moved: false, justPicked: false, btn: null, sound: true };
+const BTN = {
+  rot: { x: 4, y: 273, w: 34, h: 12 }, del: { x: 41, y: 273, w: 34, h: 12 }, go: { x: 78, y: 273, w: 50, h: 12 },
+  codex: { x: 117, y: 1, w: 13, h: 12 }, snd: { x: 2, y: 1, w: 13, h: 12 },
+  pause: { x: 84, y: 154, w: 12, h: 10 }, sp1: { x: 98, y: 154, w: 12, h: 10 }, sp2: { x: 112, y: 154, w: 12, h: 10 }
+};
+const inRect = (x, y, r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+const trayRect = i => ({ x: 6 + i * 15, y: 166, w: 14, h: 14 });
+function gridCell(x, y) {
+  const cx = Math.floor((x - GX) / PITCH), cy = Math.floor((y - GY) / PITCH);
+  return (cx >= 0 && cy >= 0 && cx < GC && cy < GR) ? [cx, cy] : null;
+}
+function canPlace(p, x, y) {
+  const o = buildOcc(Gm.pieces);
+  for (const [dx, dy] of cellsOf(p)) {
+    const cx = x + dx, cy = y + dy;
+    if (cx < 0 || cy < 0 || cx >= GC || cy >= GR || o[cy][cx]) return false;
+  }
+  return true;
+}
+function anchorFor(p, cell) {
+  const [w, h] = dimsOf(p);
+  return [cell[0] - Math.floor((w - 1) / 2), cell[1] - Math.floor((h - 1) / 2)];
+}
+function cancelHeld() {
+  const h = ui.held; if (!h) return;
+  if (h.from === 'grid') { h.p.rot = h.orot; h.p.x = h.ox; h.p.y = h.oy; Gm.pieces.push(h.p); recompute(); }
+  else { const i = Gm.tray[h.idx] ? Gm.tray.indexOf(null) : h.idx; if (i >= 0) Gm.tray[i] = h.p; else Gm.tray.push(h.p); }
+  ui.held = null;
+}
+function evPos(e) {
+  const r = cv.getBoundingClientRect();
+  const sx = cv.width / r.width, sy = cv.height / r.height;
+  return [((e.clientX - r.left) * sx - OX) / P, ((e.clientY - r.top) * sy - OY) / P];
+}
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  try { cv.setPointerCapture(e.pointerId); } catch (_) { }
+  if (AC && AC.state === 'suspended') AC.resume();
+  const [x, y] = evPos(e);
+  ui.px = x; ui.py = y; ui.downX = x; ui.downY = y; ui.moved = false; ui.justPicked = false; ui.btn = null;
+  for (const k in BTN) if (inRect(x, y, BTN[k])) ui.btn = k;
+  if (Gm.phase === 'prep' && !ui.btn) {
+    if (!ui.held) {
+      for (let i = 0; i < TRAY_N; i++) if (Gm.tray[i] && inRect(x, y, trayRect(i))) {
+        ui.held = { p: Gm.tray[i], from: 'tray', idx: i }; Gm.tray[i] = null; ui.justPicked = true; return;
+      }
+      const c = gridCell(x, y);
+      if (c) {
+        const o = buildOcc(Gm.pieces), p = o[c[1]][c[0]];
+        if (p) {
+          ui.held = { p, from: 'grid', ox: p.x, oy: p.y, orot: p.rot };
+          Gm.pieces.splice(Gm.pieces.indexOf(p), 1); recompute(); ui.justPicked = true;
+        }
+      }
+    }
+  }
+  ui.down = true;
+});
+cv.addEventListener('pointermove', e => {
+  const [x, y] = evPos(e); ui.px = x; ui.py = y;
+  if (Math.hypot(x - ui.downX, y - ui.downY) > 2) ui.moved = true;
+});
+cv.addEventListener('pointerup', e => {
+  e.preventDefault();
+  const [x, y] = evPos(e); ui.px = x; ui.py = y; ui.down = false;
+  if (ui.btn) { if (inRect(x, y, BTN[ui.btn])) onButton(ui.btn); ui.btn = null; return; }
+  if (Gm.phase === 'reward') return onRewardTap(x, y);
+  if (Gm.phase === 'over') { if (y > 150 && y < 200 && x > 30 && x < 102) newRun(); return; }
+  if (Gm.phase === 'codex') return onCodexTap(x, y);
+  if (Gm.phase !== 'prep' || !ui.held) return;
+  const h = ui.held;
+  if (ui.justPicked && !ui.moved) return; // タップで選択(スティッキー)
+  const cell = gridCell(x, y);
+  if (cell) {
+    const [ax, ay] = anchorFor(h.p, cell);
+    if (canPlace(h.p, ax, ay)) {
+      h.p.x = ax; h.p.y = ay; Gm.pieces.push(h.p); ui.held = null; recompute(); beep(300, 0.04, 'square', 0.03);
+    } else if (ui.moved) cancelHeld();
+    return;
+  }
+  if (y >= 163 && y < 182) { // トレイに戻す
+    const i = Gm.tray.indexOf(null);
+    if (i >= 0) { Gm.tray[i] = h.p; ui.held = null; } else cancelHeld();
+    return;
+  }
+  if (ui.moved) cancelHeld();
+});
+function onButton(k) {
+  if (Gm.phase === 'codex') return;
+  if (k === 'codex') { if (Gm.phase === 'prep') { cancelHeld(); Gm.prev = Gm.phase; Gm.phase = 'codex'; Gm.codexPage = 0; } return; }
+  if (k === 'snd') { Gm.sound = !Gm.sound; return; }
+  if (k === 'pause') Gm.speed = 0; if (k === 'sp1') Gm.speed = 1; if (k === 'sp2') Gm.speed = 3;
+  if (Gm.phase !== 'prep') return;
+  if (k === 'rot') {
+    if (ui.held && ui.held.p.t === 'chain') ui.held.p.rot ^= 1;
+    else Gm.msg = '回転は分子をつかんでいる間に使えます';
+  }
+  if (k === 'del') { if (ui.held) { ui.held = null; } }
+  if (k === 'go') { startBattle(); }
+}
+function onRewardTap(x, y) {
+  for (let i = 0; i < 3; i++) {
+    const r = { x: 8, y: 62 + i * 40, w: 116, h: 36 };
+    if (inRect(x, y, r)) {
+      const p = Gm.rewards[i];
+      const j = Gm.tray.indexOf(null);
+      if (j < 0) { Gm.msg = 'トレイが一杯。下の「スキップ」で回復だけ受け取ろう'; Gm.msgT = 2.5; return; }
+      Gm.tray[j] = p; nextStage(); return;
+    }
+  }
+  if (inRect(x, y, { x: 30, y: 184, w: 72, h: 12 })) { Gm.hero.hp = Math.min(Gm.hero.max, Gm.hero.hp + Math.round(Gm.hero.max * 0.3)); nextStage(); }
+}
+function nextStage() {
+  Gm.enemy = genEnemy(Gm.stage); Gm.phase = 'prep'; Gm.B = null; Gm.msg = '';
+  beep(400, 0.08, 'triangle', 0.04);
+}
+function onCodexTap(x, y) {
+  const pages = Math.ceil(RX.length / 4);
+  if (inRect(x, y, { x: 8, y: 262, w: 30, h: 14 })) Gm.codexPage = (Gm.codexPage + pages - 1) % pages;
+  else if (inRect(x, y, { x: 94, y: 262, w: 30, h: 14 })) Gm.codexPage = (Gm.codexPage + 1) % pages;
+  else if (inRect(x, y, { x: 42, y: 262, w: 48, h: 14 })) Gm.phase = Gm.prev || 'prep';
+}
+
+/* ---------- サウンド ---------- */
+let AC = null;
+function beep(f, d, type, v) {
+  if (!Gm.sound) return;
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'square'; o.frequency.value = f; g.gain.value = v || 0.03;
+    o.connect(g); g.connect(AC.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + d); o.stop(AC.currentTime + d);
+  } catch (e) { }
+}
+
+/* =====================================================================
+   描画 ― ピース
+   ===================================================================== */
+function tile(x, y, c) { // 13x13 のタイル
+  R(x, y, 13, 13, c[1]); R(x + 1, y + 1, 11, 11, c[0]);
+  R(x + 1, y + 1, 11, 1, c[2]); R(x + 1, y + 1, 1, 11, c[2]);
+}
+function drawGroupTile(g, x, y) {
+  const key = g === 'o2' ? 'O2' : g === 'cat' ? 'CAT' : g;
+  tile(x, y, GCOL[key]);
+  switch (g) {
+    case 'OH': GL('OH', x + 3, y + 4); break;
+    case 'COOH': GL('CO', x + 3, y + 1); GL('OH', x + 3, y + 7); break;
+    case 'NH2': GL('NH2', x + 1, y + 4); break;
+    case 'CHO': GL('CHO', x + 1, y + 4); break;
+    case 'Cl': GL('Cl', x + 3, y + 4); break;
+    case 'o2': GL('O2', x + 3, y + 4); break;
+    case 'cat': GL('H+', x + 3, y + 4); break;
+  }
+}
+function atom(cx, cy, col, hi) {
+  const w = [3, 5, 7, 7, 7, 5, 3];
+  for (let r = 0; r < 7; r++) R(cx - (w[r] - 1) / 2, cy - 3 + r, w[r], 1, col);
+  R(cx - 2, cy - 2, 2, 1, hi); R(cx - 2, cy - 1, 1, 1, hi);
+}
+function drawChain(p, x0, y0, eff) {
+  const cs = cellsOf(p), BG = '#2c2a5e';
+  for (const [dx, dy] of cs) { R(x0 + dx * PITCH, y0 + dy * PITCH, 13, 13, BG); R(x0 + dx * PITCH, y0 + dy * PITCH, 13, 1, '#3c3880'); }
+  for (let i = 0; i < p.n - 1; i++) { // セル間の隙間を埋める
+    const [dx, dy] = cs[i];
+    if (p.rot) R(x0 + dx * PITCH, y0 + dy * PITCH + 13, 13, 1, BG); else R(x0 + dx * PITCH + 13, y0 + dy * PITCH, 1, 13, BG);
+  }
+  const ene = eff ? eff.ene : p.ene;
+  for (let i = 0; i < p.n - 1; i++) {
+    const [dx, dy] = cs[i];
+    const cx = x0 + dx * PITCH + 6, cy = y0 + dy * PITCH + 6;
+    const dbl = ene && i === 0, bc = dbl ? '#ffb04a' : '#d0d0f0';
+    if (p.rot) {
+      if (dbl) { R(cx - 1, cy + 4, 1, 7, bc); R(cx + 1, cy + 4, 1, 7, bc); } else R(cx, cy + 4, 1, 7, bc);
+    } else {
+      if (dbl) { R(cx + 4, cy - 1, 7, 1, bc); R(cx + 4, cy + 1, 7, 1, bc); } else R(cx + 4, cy, 7, 1, bc);
+    }
+  }
+  for (const [dx, dy] of cs) atom(x0 + dx * PITCH + 6, y0 + dy * PITCH + 6, '#6a6aa8', '#d0d0ff');
+  // 官能基が付いたら小さな色点
+  if (eff) {
+    let k = 0;
+    for (const g of eff.groups) { R(x0 + 1 + k * 3, y0 + 1, 2, 2, GCOL[g][0]); k++; }
+  }
+}
+let _ringSp = null;
+function ringSprite() {
+  if (_ringSp) return _ringSp;
+  const c = document.createElement('canvas'); c.width = 27; c.height = 27;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2c2a5e'; g.fillRect(0, 0, 27, 27);
+  const pts = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 2 + k * Math.PI / 3; pts.push([Math.round(13 + 10.5 * Math.cos(a)), Math.round(13 - 10.5 * Math.sin(a))]); }
+  const line = (x0, y0, x1, y1, col) => {
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let er = dx + dy;
+    for (; ;) { g.fillStyle = col; g.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * er; if (e2 >= dy) { er += dy; x0 += sx; } if (e2 <= dx) { er += dx; y0 += sy; } }
+  };
+  for (let k = 0; k < 6; k++) { const a = pts[k], b = pts[(k + 1) % 6]; line(a[0], a[1], b[0], b[1], '#e0e0ff'); }
+  for (let a = 0; a < 360; a += 6) { const r = a * Math.PI / 180; g.fillStyle = '#8a8ae0'; g.fillRect(Math.round(13 + 5.5 * Math.cos(r)), Math.round(13 + 5.5 * Math.sin(r)), 1, 1); }
+  return (_ringSp = withFlash(c));
+}
+function drawPiece(p, x0, y0, o) {
+  o = o || {};
+  const eff = Gm.ev && Gm.ev.eff.get(p);
+  if (p.t === 'chain') drawChain(p, x0, y0, o.noEff ? null : eff);
+  else if (p.t === 'ring') {
+    S(ringSprite(), x0, y0, {});
+    if (eff && !o.noEff) { let k = 0; for (const g of eff.groups) { R(x0 + 1 + k * 3, y0 + 1, 2, 2, GCOL[g][0]); k++; } }
+  }
+  else drawGroupTile(p.t === 'group' ? p.g : p.t, x0, y0);
+  if (p.flash > 0 && !o.noEff) {
+    ctx.globalAlpha = 0.55;
+    for (const [dx, dy] of cellsOf(p)) R(x0 + dx * PITCH, y0 + dy * PITCH, 13, 13, '#fff');
+    ctx.globalAlpha = 1;
+  }
+}
+function drawOutline(p, x0, y0, col) {
+  const cs = cellsOf(p), has = (a, b) => cs.some(c => c[0] === a && c[1] === b);
+  for (const [dx, dy] of cs) {
+    const X = x0 + dx * PITCH, Y = y0 + dy * PITCH;
+    if (!has(dx, dy - 1)) R(X, Y, 13, 1, col);
+    if (!has(dx, dy + 1)) R(X, Y + 12, 13, 1, col);
+    if (!has(dx - 1, dy)) R(X, Y, 1, 13, col);
+    if (!has(dx + 1, dy)) R(X + 12, Y, 1, 13, col);
+  }
+}
+function drawTrayIcon(p, x, y) { // 14x14 に収まるアイコン
+  if (p.t === 'chain') {
+    tile(x, y, ['#2c2a5e', '#14123a', '#3c3880']);
+    for (let i = 0; i < p.n; i++) {
+      const ax = x + 2 + i * 3, ay = y + (i % 2 ? 2 : 5);
+      if (i < p.n - 1) R(ax + 2, y + 4, 2, 1, p.ene && i === 0 ? '#ffb04a' : '#c8c8f0');
+      R(ax, ay, 2, 2, '#e0e0ff');
+    }
+    GL('C' + p.n, x + 3, y + 7, p.ene ? '#ffb04a' : '#fff');
+  } else if (p.t === 'ring') {
+    tile(x, y, ['#2c2a5e', '#14123a', '#3c3880']);
+    const rows = ['..xxxxx..', '.x.....x.', 'x..xxx..x', 'x.x...x.x', 'x..xxx..x', '.x.....x.', '..xxxxx..'];
+    rows.forEach((r, j) => { for (let i = 0; i < 9; i++) if (r[i] === 'x') R(x + 2 + i, y + 3 + j, 1, 1, '#d8d8ff'); });
+  } else drawGroupTile(p.t === 'group' ? p.g : p.t, x, y);
+}
+
+/* =====================================================================
+   描画 ― 画面
+   ===================================================================== */
+function panel(x, y, w, h, bd, fl) {
+  R(x, y, w, h, bd); R(x + 2, y + 2, w - 4, h - 4, fl);
+  R(x + 2, y + 2, w - 4, 1, 'rgba(255,255,255,0.08)');
+  R(x + 6, y + h, 5, 2, bd); R(x + w - 11, y + h, 5, 2, bd);
+}
+function pill(x, y, w, h, col, txt, tcol) {
+  R(x, y, w, h, col); R(x + 1, y - 1 + 0, w - 2, 1, col); R(x + 1, y + h, w - 2, 1, col);
+  R(x + 1, y + 1, w - 2, 1, 'rgba(255,255,255,0.15)');
+  if (txt) T(txt, x + w / 2, y + 1.5, fit(txt, w - 4, 5), tcol || '#fff', 'center');
+}
+function btnBox(r, label, on, col) {
+  const c = col || '#6a48c0';
+  R(r.x, r.y, r.w, r.h, '#14102e'); R(r.x + 1, r.y + 1, r.w - 2, r.h - 2, on ? c : '#2c2658');
+  R(r.x + 1, r.y + 1, r.w - 2, 1, 'rgba(255,255,255,0.18)');
+  if (label) T(label, r.x + r.w / 2, r.y + 3, fit(label, r.w - 4, 5), on ? '#fff' : '#8c84c0', 'center');
+}
+
+function drawBackground() {
+  const ai = Math.floor((Gm.stage - 1) / 12);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(bgFor(ai), OX, OY, W * P, H * P);
+  // 浮遊する塵
+  const t = performance.now() / 1000;
+  for (let i = 0; i < 14; i++) {
+    const x = (i * 37 + t * (3 + i % 4)) % W, y = 70 + ((i * 53 + Math.sin(t + i) * 4) % 60);
+    R(x, y, 1, 1, 'rgba(255,255,255,0.6)');
+  }
+}
+
+function drawHeader() {
+  const ai = Math.floor((Gm.stage - 1) / 12), a = AREAS[ai % AREAS.length];
+  R(0, 0, W, 14, 'rgba(10,8,30,0.88)'); R(0, 14, W, 1, '#5a4aa0');
+  R(46, 1, 13, 12, '#24206a'); R(47, 2, 11, 10, '#3a34a0');
+  T('' + (((Gm.stage - 1) % 12) + 1 + (Gm.stage > 12 ? 0 : 0)), 52.5, 3, 5.5, '#fff', 'center');
+  T(a.name, 62, 2, fit(a.name, 34, 6), '#fff', 'left', '#14103a');
+  const st = ((Gm.stage - 1) % 12) + 1;
+  T(st + '/12', 100, 4, 4.5, '#b8b0e8', 'left');
+  btnBox(BTN.codex, null, false); S(ICON.book, 120, 4);
+  btnBox(BTN.snd, null, Gm.sound, '#3a8a5a'); S(ICON.spk, 5, 4);
+  if (!Gm.sound) R(4, 12, 9, 1, '#ff6a6a');
+}
+
+function drawEnemyPanel() {
+  panel(3, 16, 126, 50, '#6a3858', '#171430');
+  const en = Gm.enemy, ex = 9, ey = 19, pitch = 9;
+  for (let y = 0; y < 5; y++) for (let x = 0; x < 6; x++) R(ex + x * pitch, ey + y * pitch, 8, 8, '#262050');
+  for (const it of en.items) {
+    const X = ex + it.cx * pitch, Y = ey + it.cy * pitch, k = it.kd.k;
+    const fl = it.flash > 0;
+    if (k === 'club') { R(X, Y + 3, 12, 2, fl ? '#fff' : '#6a5a7a'); R(X + 11, Y + 1, 6, 6, fl ? '#fff' : '#4a4060'); R(X + 12, Y, 1, 1, '#c8c0e0'); R(X + 15, Y + 6, 1, 2, '#c8c0e0'); R(X + 16, Y + 2, 2, 1, '#c8c0e0'); }
+    else if (k === 'dagger') { R(X + 3, Y, 2, 11, fl ? '#fff' : '#a8b4d8'); R(X + 1, Y + 11, 6, 1, '#6a4a3a'); R(X + 3, Y + 12, 2, 4, '#7a5a3a'); }
+    else { R(X + 2, Y + 1, 4, 2, fl ? '#fff' : '#e8e0d0'); R(X + 3, Y + 3, 2, 3, fl ? '#fff' : '#e8e0d0'); R(X + 4, Y + 6, 1, 1, '#e8e0d0'); }
+  }
+  S(ICON.sword, 100, 25); T('' + en.items.length, 110, 24, 6, '#fff', 'left', '#14103a');
+  R(98, 38, 26, 1, '#3a3070');
+  T(en.boss ? 'BOSS' : '敵', 111, 43, 4.5, en.boss ? '#ff7a7a' : '#8c84c0', 'center');
+}
+
+function drawStage() {
+  const B = Gm.B, en = Gm.enemy, hero = Gm.hero, t = performance.now() / 1000;
+  const shake = B && B.shake > 0 ? (Math.random() < 0.5 ? -1 : 1) : 0;
+  // ヒーロー
+  let hx = 14, hy = 104 + (Math.floor(t * 2.5) % 2 ? 0 : 1);
+  if (hero.lunge > 0) hx += Math.round(Math.sin((1 - hero.lunge / 0.2) * Math.PI) * 6);
+  // 影
+  R(hx + 2, 127, 18, 2, 'rgba(0,0,0,0.35)');
+  S(HERO, hx + shake, hy, { flash: hero.flash > 0 });
+  if (hero.lunge > 0) { // 斬撃
+    const f = 1 - hero.lunge / 0.2;
+    for (let i = 0; i < 8; i++) R(hx + 20 + i * 2 + Math.round(f * 6), hy + 6 + i * 2, 3, 2, i < 2 ? '#bfe6ff' : '#fff');
+  }
+  // 敵
+  const sp = enemySprite(en.shape, en.pal), sc = en.boss ? 2 : 1;
+  const ep = ENEMY_POS();
+  let exx = ep.x, eyy = ep.y + (Math.floor(t * 2) % 2 ? 0 : 1);
+  if (en.lunge > 0) exx -= Math.round(Math.sin((1 - en.lunge / 0.2) * Math.PI) * 6);
+  if (en.shake > 0) exx += (Math.random() < 0.5 ? -2 : 2);
+  const dead = en.hp <= 0;
+  R(exx, 127, 22 * sc, 2, 'rgba(0,0,0,0.35)');
+  if (!(dead && B && B.endT > 0.1 && (Math.floor(B.endT * 20) % 2))) S(sp, exx, eyy + (dead && B ? Math.min(6, Math.round(B.endT * 8)) : 0), { flip: true, scale: sc, flash: en.flash > 0 || dead });
+  // 名前
+  pill(8, 69, 36, 9, '#5a2ea0', 'ケミ');
+  pill(84, 69, 40, 9, '#5a2ea0', en.name);
+  S(ICON.sword, 10, 80); T(fmt(Gm.power || 0), 19, 79, 5, '#fff', 'left', '#14103a');
+  S(ICON.sword, 86, 80); const eAtk = en.items.reduce((s, i) => s + i.dmg / i.kd.cd, 0); T(fmt(eAtk * 2), 95, 79, 5, '#fff', 'left', '#14103a');
+  // HPバー
+  const hp = hero.hp / hero.max, sh = Math.min(1, hero.shield / hero.max);
+  R(4, 136, 60, 12, '#0c0a22');
+  R(5, 137, 58, 3, '#16224a'); R(5, 137, Math.round(58 * sh), 3, '#3c8cf0');
+  R(5, 141, 58, 5, '#3a1220'); R(5, 141, Math.round(58 * hp), 5, '#e03838'); R(5, 141, Math.round(58 * hp), 1, '#ff8a8a');
+  S(ICON.shield, 5, 148); T(fmt(hero.shield), 13, 147, 4.5, '#8ae0ff', 'left', '#14103a');
+  S(ICON.heart, 36, 148); T(fmt(Math.max(0, hero.hp)), 44, 147, 4.5, '#fff', 'left', '#14103a');
+  TO('x' + gMult().toFixed(1), 6, 129, 5, '#5af0ff', 'left');
+  const ehp = Math.max(0, en.hp) / en.max;
+  R(68, 136, 60, 12, '#0c0a22'); R(69, 141, 58, 5, '#3a1220'); R(127 - Math.round(58 * ehp), 141, Math.round(58 * ehp), 5, '#e03838'); R(127 - Math.round(58 * ehp), 141, Math.round(58 * ehp), 1, '#ff8a8a');
+  R(69, 137, 58, 3, '#1c1a3a');
+  if (B && B.poison > 1) R(127 - Math.round(58 * Math.min(1, B.poison / en.max)), 137, Math.round(58 * Math.min(1, B.poison / en.max)), 3, '#b060f0');
+  S(ICON.heart, 112, 148); T(fmt(Math.max(0, en.hp)), 110, 147, 4.5, '#fff', 'right', '#14103a');
+  if (B && B.acid > 0) T('腐食', 70, 147, 4.5, '#ffa040', 'left');
+  // タイマー/速度
+  const tl = B ? Math.max(0, B.time) : 30;
+  const sec = Math.floor(tl), cs = Math.floor((tl - sec) * 100);
+  T(String(sec).padStart(2, '0') + ':' + String(cs).padStart(2, '0'), 8, 154, 6, tl < 8 && B ? '#ff6a6a' : '#fff', 'left', '#14103a');
+  btnBox(BTN.pause, null, Gm.speed === 0, '#e07a20'); R(88, 157, 2, 5, '#fff'); R(91, 157, 2, 5, '#fff');
+  btnBox(BTN.sp1, null, Gm.speed === 1, '#e07a20'); R(103, 157, 1, 5, '#fff'); R(104, 158, 1, 3, '#fff'); R(105, 159, 1, 1, '#fff');
+  btnBox(BTN.sp2, null, Gm.speed === 3, '#e07a20');
+  for (let i = 0; i < 2; i++) { const X = 114 + i * 4; R(X, 157, 1, 5, '#fff'); R(X + 1, 158, 1, 3, '#fff'); R(X + 2, 159, 1, 1, '#fff'); }
+}
+
+function drawTray() {
+  panel(3, 164, 126, 18, '#4a3a8a', '#141030');
+  for (let i = 0; i < TRAY_N; i++) {
+    const r = trayRect(i);
+    R(r.x, r.y, 14, 14, '#2a2352');
+    const p = Gm.tray[i];
+    if (p) drawTrayIcon(p, r.x, r.y);
+  }
+}
+
+function drawPlayerPanel() {
+  panel(3, 182, 126, 76, '#5a3ab0', '#171034');
+  const hl = ui.held && Gm.phase === 'prep' ? gridCell(ui.px, ui.py) : null;
+  for (let y = 0; y < GR; y++) for (let x = 0; x < GC; x++) R(GX + x * PITCH, GY + y * PITCH, 13, 13, ((x + y) & 1) ? '#2a2352' : '#2f2760');
+  const t = performance.now() / 1000;
+  for (const p of Gm.pieces) {
+    drawPiece(p, GX + p.x * PITCH, GY + p.y * PITCH);
+    const e = Gm.ev && Gm.ev.eff.get(p);
+    if (e && e.rxs && e.rxs.length) {
+      const col = RXI[e.rxs[0]] ? RXI[e.rxs[0]].col : '#fff';
+      if (Math.floor(t * 3) % 3 !== 2) drawOutline(p, GX + p.x * PITCH, GY + p.y * PITCH, col);
+    }
+  }
+  // 手に持っているピース
+  if (ui.held && Gm.phase === 'prep') {
+    const hp = ui.held.p;
+    if (hl) {
+      const [ax, ay] = anchorFor(hp, hl), ok = canPlace(hp, ax, ay);
+      const bx = GX + ax * PITCH, by = GY + ay * PITCH;
+      ctx.globalAlpha = 0.75; drawPiece(hp, bx, by, { noEff: true }); ctx.globalAlpha = 1;
+      drawOutline(hp, bx, by, ok ? '#6aff8a' : '#ff5a5a');
+    } else {
+      const [w, h] = dimsOf(hp);
+      ctx.globalAlpha = 0.85; drawPiece(hp, Math.round(ui.px - (w * PITCH) / 2), Math.round(ui.py - (h * PITCH) / 2) - 8, { noEff: true }); ctx.globalAlpha = 1;
+    }
+  }
+  // 右側カラム
+  S(ICON.sword, 109, 190); T('' + (Gm.ev ? Gm.ev.chains.length : 0), 118, 189, 6, '#fff', 'left', '#14103a');
+  T('分子', 118, 198, 4, '#9a90d0', 'center');
+  S(ICON.shield, 109, 210); T('' + (Gm.ev ? Gm.ev.rings.length : 0), 118, 209, 6, '#fff', 'left', '#14103a');
+  T('環', 118, 218, 4, '#9a90d0', 'center');
+}
+
+function drawLog() {
+  let l1 = '', l2 = '', c1 = '#ffe9a0';
+  const ev = Gm.ev;
+  if (Gm.msg && Gm.phase !== 'battle') { l1 = Gm.msg; c1 = '#ff9a9a'; }
+  else if (ui.held && Gm.phase === 'prep') { const i = pieceInfo(ui.held.p); l1 = i.name; l2 = i.desc; c1 = '#fff'; }
+  else if (ev) {
+    const rl = Object.values(ev.rx).map(r => RXI[r.id].name + (r.n > 1 ? '×' + r.n : ''));
+    if (rl.length) { l1 = '反応: ' + rl.join('・'); l2 = '生成: ' + ev.mols.join(' / '); }
+    else { l1 = Gm.stage === 1 ? 'ヒント: -OHの鎖と-COOHの鎖を隣り合わせに!' : '分子を隣り合わせに並べて反応させよう'; l2 = '分子: ' + (ev.mols.join(' / ') || '(なし)'); c1 = '#b8b0e8'; }
+  }
+  R(0, 257, W, 15, 'rgba(6,4,22,0.85)');
+  const s1 = fit(l1, 124, 5, 3), s2 = fit(l2, 124, 4.5, 3);
+  T(l1, 4, 259, s1, c1, 'left', '#0a0820');
+  T(l2, 4, 266, s2, '#a8a0d8', 'left', '#0a0820');
+}
+
+function drawButtons() {
+  btnBox(BTN.rot, '回転', !!(ui.held && ui.held.p.t === 'chain'));
+  btnBox(BTN.del, '捨てる', !!ui.held, '#a03a3a');
+  btnBox(BTN.go, Gm.phase === 'battle' ? '戦闘中…' : '戦闘開始', Gm.phase === 'prep', '#2a9a5a');
+}
+
+function drawPops() {
+  const B = Gm.B; if (!B) return;
+  for (const f of B.fx) if (f.k === 'slash') {
+    const k = 1 - f.t / 0.2;
+    for (let i = 0; i < 5; i++) R(f.x + i * 3 - 4, f.y + 12 - i * 3 - Math.round(k * 2), 3, 2, '#fff');
+  }
+  for (const p of B.pops) {
+    ctx.globalAlpha = Math.min(1, p.t * 3);
+    TO(p.text, p.x, p.y, p.size, p.col, 'left');
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawToasts(dt) {
+  for (const t of Gm.toasts) t.t -= dt;
+  Gm.toasts = Gm.toasts.filter(t => t.t > 0);
+  Gm.toasts.forEach((t, i) => {
+    const y = 18 + i * 12 + (t.t > 2.3 ? (t.t - 2.3) * -20 : 0);
+    R(22, y, 88, 11, t.col); R(23, y + 1, 86, 9, '#14103a'); R(23, y + 1, 86, 1, 'rgba(255,255,255,0.18)');
+    T(t.text, 66, y + 2.5, 5, t.col, 'center');
+  });
+}
+
+function drawResultBanner() {
+  const B = Gm.B; if (!B || !B.over) return;
+  const win = B.over === 'win';
+  const k = Math.min(1, B.endT * 4);
+  R(0, 98, W, Math.round(24 * k), win ? 'rgba(20,90,50,0.85)' : 'rgba(110,20,30,0.85)');
+  if (k > 0.9) TO(win ? 'WIN!' : (B.why || 'LOSE'), 66, 104, 11, win ? '#ffe96a' : '#ff9a9a', 'center');
+}
+
+function overlayDim() { R(0, 0, W, H, 'rgba(4,3,16,0.82)'); }
+
+function drawReward() {
+  overlayDim();
+  TO('勝利!  報酬を1つ選ぶ', 66, 22, 7, '#ffe96a', 'center');
+  T('HPが回復した。 基礎火力×' + GROW, 66, 36, 4.5, '#b8b0e8', 'center');
+  T('ステージ ' + (Gm.stage) + ' へ', 66, 46, 5, '#fff', 'center');
+  Gm.rewards.forEach((p, i) => {
+    const y = 62 + i * 40, info = pieceInfo(p);
+    R(8, y, 116, 36, '#4a3a8a'); R(10, y + 2, 112, 32, '#1d1642'); R(10, y + 2, 112, 1, 'rgba(255,255,255,0.1)');
+    drawTrayIcon(p, 14, y + 11);
+    T(info.name, 33, y + 4, fit(info.name, 86, 5.5), '#fff');
+    wrap(info.desc, 86, 4).slice(0, 3).forEach((ln, j) => T(ln, 33, y + 13 + j * 6, 4, '#a8a0d8'));
+  });
+  btnBox({ x: 30, y: 184, w: 72, h: 12 }, 'スキップ(HP+30%)', false);
+  if (Gm.msg) T(Gm.msg, 66, 204, fit(Gm.msg, 120, 4.5), '#ff9a9a', 'center');
+  const free = Gm.tray.filter(x => !x).length;
+  T('トレイの空き: ' + free + '/' + TRAY_N, 66, 218, 4.5, '#b8b0e8', 'center');
+}
+
+function drawOver() {
+  overlayDim();
+  TO('GAME OVER', 66, 70, 11, '#ff7a7a', 'center');
+  T(Gm.over.why, 66, 92, 5.5, '#fff', 'center');
+  T('到達ステージ: ' + Gm.stage, 66, 106, 5.5, '#ffe9a0', 'center');
+  T('最高記録: ' + save.best, 66, 116, 5, '#b8b0e8', 'center');
+  T('発見した反応: ' + Object.keys(save.codex).length + ' / ' + RX.length, 66, 126, 5, '#b8b0e8', 'center');
+  T('(図鑑は次のランにも引き継がれます)', 66, 136, 4, '#8c84c0', 'center');
+  btnBox({ x: 30, y: 152, w: 72, h: 16 }, null, true, '#2a9a5a'); T('もう一度', 66, 157, 6, '#fff', 'center');
+}
+
+function drawCodex() {
+  overlayDim();
+  TO('反応図鑑', 66, 6, 8, '#ffe96a', 'center');
+  const pages = Math.ceil(RX.length / 4), pg = Gm.codexPage;
+  T('実際の有機反応(高校化学)です  ' + (pg + 1) + '/' + pages, 66, 20, 4, '#8c84c0', 'center');
+  for (let k = 0; k < 4; k++) {
+    const r = RX[pg * 4 + k]; if (!r) break;
+    const y = 30 + k * 57, got = save.codex[r.id];
+    R(6, y, 120, 54, '#3a2e78'); R(8, y + 2, 116, 50, '#1a1440');
+    R(8, y + 2, 3, 50, got ? r.col : '#3a3470');
+    if (got) {
+      T(r.name, 14, y + 4, 6.5, r.col);
+      T(r.eq, 14, y + 15, fit(r.eq, 108, 4.5), '#fff');
+      r.d.forEach((ln, j) => T(ln, 14, y + 27 + j * 7, fit(ln, 108, 4.5), '#b8b0e8'));
+    } else {
+      T('？？？？', 14, y + 4, 6.5, '#6a62a0');
+      T('まだ発見していない反応', 14, y + 18, 4.5, '#6a62a0');
+      T('盤面に分子を並べて探そう', 14, y + 28, 4.5, '#6a62a0');
+    }
+  }
+  btnBox({ x: 8, y: 262, w: 30, h: 14 }, '◀', false); btnBox({ x: 94, y: 262, w: 30, h: 14 }, '▶', false);
+  btnBox({ x: 42, y: 262, w: 48, h: 14 }, '閉じる', true);
+}
+
+/* =====================================================================
+   メインループ
+   ===================================================================== */
+let last = performance.now();
+function frame(now) {
+  let dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (Gm.msgT > 0) { Gm.msgT -= dt; if (Gm.msgT <= 0) Gm.msg = ''; }
+  if (Gm.phase === 'battle') {
+    const steps = Gm.speed === 0 ? 0 : Gm.speed;
+    for (let i = 0; i < steps; i++) { battleStep(dt); popsStep(dt); if (Gm.phase !== 'battle') break; }
+  } else if (Gm.B) popsStep(dt);
+  ctx.fillStyle = '#05060f'; ctx.fillRect(0, 0, cv.width, cv.height);
+  drawBackground();
+  drawHeader(); drawEnemyPanel(); drawStage(); drawTray(); drawPlayerPanel(); drawLog(); drawButtons();
+  drawPops(); drawResultBanner();
+  if (Gm.phase === 'reward') drawReward();
+  if (Gm.phase === 'over') drawOver();
+  if (Gm.phase === 'codex') drawCodex();
+  drawToasts(dt);
+  requestAnimationFrame(frame);
+}
+
+newRun();
+window.__game = { Gm, evaluate, mkChain, mkGroup, mkRing, mkO2, mkCat, recompute, startBattle, battleStep, genEnemy, save, newRun, fmt, ui };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
