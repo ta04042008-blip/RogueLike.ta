@@ -5,42 +5,84 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ローグライク・カード</title>
 <style>
-:root{--bg:#14121c;--panel:#201c2e;--line:#3a3354;--text:#eee;--atk:#d9534f;--def:#4a90d9;--skl:#8e6fd8;--gold:#e8c14a}
+:root{color-scheme:dark;--bg:#0c0a10;--panel:#1b1722;--line:#46395a;--text:#efe6d2;--muted:#a79bb5;--atk:#b8402f;--skl:#3f8a55;--pow:#3f6fb8;--gold:#e8c14a;--hp:#c0392b;--blk:#5aa0e0;--orb:#2f6fd0}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Hiragino Sans","Noto Sans JP",sans-serif;min-height:100vh}
-#app{max-width:960px;margin:0 auto;padding:12px}
-header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:var(--panel);border-radius:8px;margin-bottom:12px}
-header span{font-size:14px}
-h1,h2{margin:8px 0}
-button{background:#3b3360;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 14px;font-size:15px;cursor:pointer}
-button:hover:not(:disabled){background:#51478a}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:"Hiragino Mincho ProN","Noto Serif JP",Georgia,serif;min-height:100vh}
+#app{max-width:1100px;margin:0 auto;padding:0 16px 16px}
+header{display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:10px 4px;border-bottom:1px solid var(--line);font-size:15px}
+header b{color:var(--gold);letter-spacing:.1em;margin-right:auto}
+h2{margin:12px 0}
+button{background:#2a2236;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 16px;font:inherit;cursor:pointer}
+button:hover:not(:disabled){background:#43365a;border-color:var(--gold)}
 button:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .center{text-align:center}
-.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:12px 0}
-.enemies{min-height:190px}
-.unit{background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:10px;width:170px;text-align:center;position:relative}
-.unit.target{border-color:var(--gold);cursor:pointer;box-shadow:0 0 12px var(--gold)}
-.unit .face{font-size:44px}
-.bar{height:10px;background:#000;border-radius:5px;overflow:hidden;margin:4px 0}
-.bar i{display:block;height:100%;background:#4caf50}
-.small{font-size:12px;color:#ccc}
-.intent{font-weight:bold;color:var(--gold);margin-bottom:4px;min-height:20px}
-.hand{min-height:190px}
-.card{width:130px;min-height:170px;background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;display:flex;flex-direction:column;transition:transform .1s}
-.card:hover:not(.off){transform:translateY(-8px)}
-.card.off{opacity:.45;cursor:default}
-.card.sel{border-color:var(--gold);transform:translateY(-12px)}
-.card.attack{border-top:6px solid var(--atk)}.card.skill{border-top:6px solid var(--def)}.card.power{border-top:6px solid var(--skl)}
-.card .cost{align-self:flex-start;background:var(--gold);color:#000;border-radius:50%;width:24px;height:24px;text-align:center;font-weight:bold;line-height:24px}
-.card .nm{font-weight:bold;margin:4px 0}
-.card .tx{font-size:13px;color:#ddd;flex:1}
-.card .rar{font-size:11px;color:#999}
-.card.rare .nm{color:var(--gold)}.card.uncommon .nm{color:#7fd1ff}
-.log{background:#0d0b14;border-radius:8px;padding:8px;height:84px;overflow:auto;font-size:13px;color:#bbb}
-.pile{font-size:13px;color:#bbb}
-.node{width:200px;padding:16px;text-align:center}
-.node .ic{font-size:36px}
-.over{opacity:.5}
+.row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+.node{width:200px;padding:18px;text-align:center}
+.node .ic{font-size:38px}
+/* ---- 戦闘ステージ ---- */
+.stage{position:relative;margin-top:8px;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#2a2236 0%,#14101b 60%,#0a080d 100%)}
+.field{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:20px 24px 0;min-height:300px}
+.field::after{content:"";position:absolute;left:0;right:0;top:318px;height:1px;background:linear-gradient(90deg,transparent,#5a4a70,transparent)}
+.foes{display:flex;gap:10px;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap}
+.unit{width:150px;text-align:center;position:relative;padding-bottom:10px}
+.unit .face{font-size:84px;line-height:1.1;filter:drop-shadow(0 8px 6px #000a)}
+.foe .face{transform:scaleX(-1)}
+.foe.dead{opacity:.25;filter:grayscale(1)}
+.foe.target .face{filter:drop-shadow(0 0 14px var(--gold))}
+.foe.target{cursor:pointer}
+.name{font-size:13px;color:var(--muted)}
+.intent{height:28px;font-size:16px;font-weight:bold;color:#ffd9a0;text-shadow:0 1px 2px #000}
+.hpbar{position:relative;height:16px;background:#2b0d0d;border:1px solid #000;border-radius:3px;margin:4px 6px 2px;overflow:hidden}
+.hpbar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#e0523f,#9c2a1d);transition:width .3s}
+.hpbar span{position:relative;font-size:11px;line-height:14px;text-shadow:0 1px 1px #000;font-family:system-ui,sans-serif}
+.hpbar.hasblk{border-color:var(--blk);box-shadow:0 0 0 1px var(--blk)}
+.blk{position:absolute;left:-6px;top:-8px;z-index:1;background:var(--blk);color:#001;border-radius:50% 50% 50% 8px;width:30px;height:30px;line-height:30px;font:bold 14px system-ui,sans-serif;box-shadow:0 2px 4px #000a}
+.status{min-height:18px;font-size:12px;color:var(--muted);font-family:system-ui,sans-serif}
+/* ---- 下部: 手札と山札 ---- */
+.bottom{position:relative;display:grid;grid-template-columns:130px 1fr 130px;align-items:end;padding:0 12px 12px;min-height:250px}
+.corner{display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:6px}
+.orb{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7fb4ff,var(--orb) 55%,#16346b);border:3px solid #cfe0ff;display:flex;align-items:center;justify-content:center;font:bold 26px system-ui,sans-serif;box-shadow:0 0 14px #3a7bff88}
+.orb.empty{filter:grayscale(.9) brightness(.6);box-shadow:none}
+.pile{font-size:12px;color:var(--muted);text-align:center;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:#15111b;font-family:system-ui,sans-serif}
+.pile b{display:block;font-size:20px;color:var(--text)}
+#end{background:#6b3a18;border-color:#e8a24a;font-weight:bold;padding:12px 14px}
+#end:hover:not(:disabled){background:#8a4d1f}
+.hand{display:flex;justify-content:center;align-items:flex-end;min-height:230px;padding-top:40px}
+.hand .card{margin:0 -14px;transform:rotate(var(--r,0deg)) translateY(var(--y,0));transform-origin:50% 130%}
+.hand .card:hover:not(.off){transform:rotate(0) translateY(-70px) scale(1.25);z-index:20}
+.hand .card.sel{transform:rotate(0) translateY(-70px) scale(1.25);z-index:20;border-color:var(--gold);box-shadow:0 0 18px var(--gold)}
+.hand .card.off{filter:brightness(.55) saturate(.6)}
+.log{margin:0;padding:6px 12px;background:#07060a;border-top:1px solid var(--line);height:58px;overflow:auto;font-size:12px;color:var(--muted);font-family:system-ui,sans-serif}
+/* ---- カード ---- */
+.card{position:relative;width:132px;height:188px;border-radius:9px;border:3px solid #1a1320;background:#2a2230;cursor:pointer;display:flex;flex-direction:column;padding:6px;box-shadow:0 4px 10px #000a;transition:transform .12s,box-shadow .12s;flex:none}
+.card.attack{background:linear-gradient(#5a2a24,#2a1512);border-color:#8a3a2e}
+.card.skill{background:linear-gradient(#25492f,#122318);border-color:#3f8a55}
+.card.power{background:linear-gradient(#25396a,#121a33);border-color:#3f6fb8}
+.card.rare{box-shadow:0 0 0 2px var(--gold),0 4px 10px #000a}
+.card.uncommon{box-shadow:0 0 0 2px #7fb0e8,0 4px 10px #000a}
+.card .cost{position:absolute;left:-9px;top:-9px;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7fb4ff,var(--orb) 60%,#16346b);border:2px solid #cfe0ff;font:bold 16px/26px system-ui,sans-serif;text-align:center}
+.card .nm{text-align:center;font-weight:bold;font-size:13px;background:#0006;border-radius:3px;padding:2px 0 2px 14px;margin-bottom:4px}
+.card.rare .nm{color:var(--gold)}.card.uncommon .nm{color:#9cc8ff}
+.card .art{flex:0 0 52px;display:flex;align-items:center;justify-content:center;font-size:32px;background:#0004;border:1px solid #0008;border-radius:4px}
+.card .typ{font-size:10px;text-align:center;color:var(--muted);margin:2px 0}
+.card .tx{flex:1;font-size:12px;line-height:1.35;background:#0005;border-radius:4px;padding:4px 5px;text-align:center;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif}
+.row .card:hover{transform:translateY(-6px)}
+@media(max-width:700px){
+  .field{padding:12px 6px 0;min-height:240px}.field::after{top:258px}
+  .unit{width:104px}.unit .face{font-size:54px}
+  .bottom{grid-template-columns:1fr 1fr;grid-template-areas:"l r" "h h";padding:0 4px 8px;min-height:0;align-items:start}
+  .bottom>.corner:first-child{grid-area:l;flex-direction:row;justify-content:flex-start;padding-left:6px}
+  .bottom>.corner:last-child{grid-area:r;flex-direction:row-reverse;justify-content:flex-start;padding-right:6px}
+  .hand{grid-area:h;min-height:170px;padding-top:36px;overflow:visible}
+  .orb{width:56px;height:56px;font-size:18px}
+  .hand .card{width:88px;height:132px;margin:0 -22px;padding:4px}
+  .card .cost{width:24px;height:24px;font-size:13px;line-height:20px;left:-7px;top:-7px}
+  .card .art{flex-basis:30px;font-size:20px}.card .tx{font-size:10px;padding:2px}.card .nm{font-size:10px;padding-left:10px}.card .typ{display:none}
+  .hand .card:hover:not(.off),.hand .card.sel{transform:rotate(0) translateY(-40px) scale(1.25)}
+  .pile b{font-size:16px}#end{padding:8px 6px;font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -307,35 +349,54 @@ function intentText(e){
   if(m.vuln) t.push('脆弱付与');
   return t.join(' ');
 }
-function cardHtml(id,attr='',extra=''){
+function cardIcon(c){
+  if(c.aoe) return '🔥';
+  if(c.hits>1) return '🗡️';
+  if(c.dmg) return c.dmg>=14?'🔨':'⚔️';
+  if(c.blk) return '🛡️';
+  if(c.energy) return '⚡';
+  if(c.str) return '💪';
+  if(c.weak||c.vuln) return '💢';
+  if(c.draw) return '📖';
+  return '✨';
+}
+function cardHtml(id,attr='',extra='',style=''){
   const c=CARDS[id];
-  return `<div class="card ${c.type} ${c.rar} ${extra}" ${attr}><div class="cost">${c.cost}</div>
-    <div class="nm">${c.name}</div><div class="tx">${cardText(id)}</div>
-    <div class="rar">${{attack:'アタック',skill:'スキル',power:'パワー'}[c.type]}</div></div>`;
+  return `<div class="card ${c.type} ${c.rar} ${extra}" ${attr} style="${style}"><div class="cost">${c.cost}</div>
+    <div class="nm">${c.name}</div><div class="art">${cardIcon(c)}</div>
+    <div class="typ">${{attack:'アタック',skill:'スキル',power:'パワー'}[c.type]}</div>
+    <div class="tx">${cardText(id)}</div></div>`;
+}
+function hpBar(hp,max,block){
+  return `<div class="hpbar ${block?'hasblk':''}">${block?`<div class="blk">${block}</div>`:''}
+    <i style="width:${Math.max(0,hp/max*100)}%"></i><span>${Math.max(0,hp)}/${max}</span></div>`;
 }
 function renderBattle(){
   const selCard=bt.sel!=null?bt.hand[bt.sel]:null;
-  const status=(o)=>[o.str?`💪${o.str}`:'',o.vuln>0?`脆弱${o.vuln}`:'',o.weak>0?`弱体${o.weak}`:''].filter(Boolean).join(' ');
-  $app.innerHTML = header()+
-  `<div class="row enemies">`+bt.enemies.map((e,i)=>`
-    <div class="unit ${e.hp<=0?'over':''} ${selCard&&e.hp>0?'target':''}" data-e="${i}">
-      <div class="intent">${e.hp>0?intentText(e):'撃破'}</div>
-      <div class="face">${e.face}</div><div>${e.name}</div>
-      <div class="bar"><i style="width:${Math.max(0,e.hp/e.max*100)}%"></i></div>
-      <div class="small">${Math.max(0,e.hp)}/${e.max} ${e.block?'🛡️'+e.block:''}</div>
-      <div class="small">${status(e)}</div></div>`).join('')+`</div>
-  <div class="row"><div class="unit"><div class="face">🧙</div>
-    <div class="bar"><i style="width:${run.hp/run.max*100}%"></i></div>
-    <div class="small">❤️ ${run.hp}/${run.max} ${bt.block?'🛡️'+bt.block:''}</div>
-    <div class="small">${status(bt)}</div></div>
-    <div class="unit"><div>⚡ エネルギー</div><div class="face">${bt.energy}/3</div>
-    <div class="pile">山札${bt.draw.length} 捨て札${bt.discard.length}</div></div></div>
-  <div class="row hand">`+bt.hand.map((id,i)=>
-    cardHtml(id,`data-h="${i}"`,(CARDS[id].cost>bt.energy||bt.over?'off':'')+(bt.sel===i?' sel':''))).join('')+`</div>
-  <div class="center"><button id="end" ${bt.over?'disabled':''}>ターン終了</button></div>
-  <div class="log" id="log">${bt.log.slice(-12).map(h).join('<br>')}</div>`;
+  const status=o=>[o.str?`💪${o.str}`:'',o.vuln>0?`脆弱${o.vuln}`:'',o.weak>0?`弱体${o.weak}`:''].filter(Boolean).join(' ');
+  const n=bt.hand.length,mid=(n-1)/2;
+  $app.innerHTML = header()+`<div class="stage">
+  <div class="field">
+    <div class="unit"><div class="intent"></div><div class="face">🧙</div>
+      ${hpBar(run.hp,run.max,bt.block)}<div class="status">${status(bt)}</div><div class="name">あなた</div></div>
+    <div class="foes">`+bt.enemies.map((e,i)=>`
+      <div class="unit foe ${e.hp<=0?'dead':''} ${selCard&&e.hp>0?'target':''}" data-e="${i}">
+        <div class="intent">${e.hp>0?intentText(e):''}</div><div class="face">${e.face}</div>
+        ${hpBar(e.hp,e.max,e.block)}<div class="status">${status(e)}</div><div class="name">${e.name}</div></div>`).join('')+`
+    </div>
+  </div>
+  <div class="bottom">
+    <div class="corner"><div class="orb ${bt.energy<=0?'empty':''}">${bt.energy}/3</div>
+      <div class="pile">山札<b>${bt.draw.length}</b></div></div>
+    <div class="hand">`+bt.hand.map((id,i)=>cardHtml(id,`data-h="${i}"`,
+      (CARDS[id].cost>bt.energy||bt.over?'off':'')+(bt.sel===i?' sel':''),
+      `--r:${((i-mid)*4).toFixed(1)}deg;--y:${(Math.abs(i-mid)**2*3).toFixed(1)}px;z-index:${i}`)).join('')+`</div>
+    <div class="corner"><button id="end" ${bt.over?'disabled':''}>ターン終了</button>
+      <div class="pile">捨て札<b>${bt.discard.length}</b></div></div>
+  </div>
+  <div class="log" id="log">${bt.log.slice(-12).map(h).join('<br>')}</div></div>`;
   $app.querySelectorAll('.card').forEach(el=>el.onclick=()=>playCard(+el.dataset.h));
-  $app.querySelectorAll('.unit[data-e]').forEach(el=>el.onclick=()=>{
+  $app.querySelectorAll('.foe').forEach(el=>el.onclick=()=>{
     if(bt.sel!=null&&bt.enemies[el.dataset.e].hp>0) playCard(bt.sel,+el.dataset.e);
   });
   document.getElementById('end').onclick=endTurn;
