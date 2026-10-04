@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ローグライク・カード</title>
+<style>
+:root{--bg:#14121c;--panel:#201c2e;--line:#3a3354;--text:#eee;--atk:#d9534f;--def:#4a90d9;--skl:#8e6fd8;--gold:#e8c14a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Hiragino Sans","Noto Sans JP",sans-serif;min-height:100vh}
+#app{max-width:960px;margin:0 auto;padding:12px}
+header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:var(--panel);border-radius:8px;margin-bottom:12px}
+header span{font-size:14px}
+h1,h2{margin:8px 0}
+button{background:#3b3360;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 14px;font-size:15px;cursor:pointer}
+button:hover:not(:disabled){background:#51478a}
+button:disabled{opacity:.4;cursor:default}
+.center{text-align:center}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.enemies{min-height:190px}
+.unit{background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:10px;width:170px;text-align:center;position:relative}
+.unit.target{border-color:var(--gold);cursor:pointer;box-shadow:0 0 12px var(--gold)}
+.unit .face{font-size:44px}
+.bar{height:10px;background:#000;border-radius:5px;overflow:hidden;margin:4px 0}
+.bar i{display:block;height:100%;background:#4caf50}
+.small{font-size:12px;color:#ccc}
+.intent{font-weight:bold;color:var(--gold);margin-bottom:4px;min-height:20px}
+.hand{min-height:190px}
+.card{width:130px;min-height:170px;background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;display:flex;flex-direction:column;transition:transform .1s}
+.card:hover:not(.off){transform:translateY(-8px)}
+.card.off{opacity:.45;cursor:default}
+.card.sel{border-color:var(--gold);transform:translateY(-12px)}
+.card.attack{border-top:6px solid var(--atk)}.card.skill{border-top:6px solid var(--def)}.card.power{border-top:6px solid var(--skl)}
+.card .cost{align-self:flex-start;background:var(--gold);color:#000;border-radius:50%;width:24px;height:24px;text-align:center;font-weight:bold;line-height:24px}
+.card .nm{font-weight:bold;margin:4px 0}
+.card .tx{font-size:13px;color:#ddd;flex:1}
+.card .rar{font-size:11px;color:#999}
+.card.rare .nm{color:var(--gold)}.card.uncommon .nm{color:#7fd1ff}
+.log{background:#0d0b14;border-radius:8px;padding:8px;height:84px;overflow:auto;font-size:13px;color:#bbb}
+.pile{font-size:13px;color:#bbb}
+.node{width:200px;padding:16px;text-align:center}
+.node .ic{font-size:36px}
+.over{opacity:.5}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+/* ===================== データ ===================== */
+// カード効果の項目: dmg(ダメージ) hits(回数) aoe(全体) blk(ブロック) draw(ドロー) energy(エネルギー)
+// vuln/weak(敵に付与) str(自分の筋力) self(自傷) exhaust(消滅)
+const CARDS = {
+  strike:   {name:'ストライク',   cost:1,type:'attack',rar:'basic',   dmg:6},
+  defend:   {name:'ガード',       cost:1,type:'skill', rar:'basic',   blk:5},
+  bash:     {name:'強打',         cost:2,type:'attack',rar:'basic',   dmg:8,vuln:2},
+  cleave:   {name:'なぎ払い',     cost:1,type:'attack',rar:'common',  dmg:8,aoe:true},
+  twin:     {name:'二連斬り',     cost:1,type:'attack',rar:'common',  dmg:5,hits:2},
+  heavy:    {name:'重い一撃',     cost:2,type:'attack',rar:'common',  dmg:14},
+  iron:     {name:'鉄壁',         cost:1,type:'skill', rar:'common',  blk:8},
+  shrug:    {name:'受け流し',     cost:1,type:'skill', rar:'common',  blk:6,draw:1},
+  insight:  {name:'洞察',         cost:0,type:'skill', rar:'common',  draw:2},
+  taunt:    {name:'挑発',         cost:1,type:'skill', rar:'common',  weak:2,vuln:1},
+  fury:     {name:'怒りの炎',     cost:0,type:'attack',rar:'uncommon',dmg:4,self:2},
+  fort:     {name:'要塞',         cost:2,type:'skill', rar:'uncommon',blk:16},
+  focus:    {name:'集中',         cost:0,type:'skill', rar:'uncommon',energy:1,exhaust:true},
+  flex:     {name:'力み',         cost:0,type:'skill', rar:'uncommon',str:2,exhaust:true},
+  rage:     {name:'激昂',         cost:1,type:'power', rar:'uncommon',str:2,exhaust:true},
+  slam:     {name:'連続突き',     cost:2,type:'attack',rar:'uncommon',dmg:4,hits:4},
+  blood:    {name:'血の契約',     cost:1,type:'skill', rar:'uncommon',self:3,energy:2,draw:1,exhaust:true},
+  inferno:  {name:'業火',         cost:2,type:'attack',rar:'rare',    dmg:16,aoe:true,exhaust:true},
+  exec:     {name:'処刑',         cost:3,type:'attack',rar:'rare',    dmg:30},
+  bulwark:  {name:'不動の構え',   cost:2,type:'skill', rar:'rare',    blk:12,str:1},
+  ritual:   {name:'闘気の儀式',   cost:1,type:'power', rar:'rare',    str:3,self:4,exhaust:true},
+};
+function cardText(id){
+  const c=CARDS[id],t=[];
+  if(c.dmg) t.push(`${c.dmg}ダメージ${c.hits?'×'+c.hits:''}${c.aoe?'(全体)':''}`);
+  if(c.blk) t.push(`ブロック${c.blk}`);
+  if(c.vuln) t.push(`脆弱${c.vuln}`);
+  if(c.weak) t.push(`弱体${c.weak}`);
+  if(c.str) t.push(`筋力+${c.str}`);
+  if(c.draw) t.push(`${c.draw}枚引く`);
+  if(c.energy) t.push(`エネルギー+${c.energy}`);
+  if(c.self) t.push(`自分に${c.self}ダメージ`);
+  if(c.exhaust) t.push('消滅');
+  return t.join('。');
+}
+const ENEMIES = {
+  slime:  {name:'スライム',   face:'🟢',hp:[18,24],moves:[{dmg:6},{dmg:4,weak:1},{block:6}]},
+  goblin: {name:'ゴブリン',   face:'👺',hp:[22,28],moves:[{dmg:7},{dmg:7},{str:2},{dmg:5,hits:2}]},
+  bat:    {name:'コウモリ',   face:'🦇',hp:[14,18],moves:[{dmg:3,hits:3},{dmg:5,vuln:1}]},
+  wolf:   {name:'オオカミ',   face:'🐺',hp:[26,32],moves:[{dmg:9},{str:1,block:5},{dmg:6,hits:2}]},
+  knight: {name:'黒騎士',     face:'🛡️',hp:[60,70],elite:1,moves:[{block:12},{dmg:14},{dmg:8,vuln:2},{str:2}]},
+  spider: {name:'大蜘蛛',     face:'🕷️',hp:[52,60],elite:1,moves:[{dmg:6,weak:2},{dmg:4,hits:3},{block:10,str:1},{dmg:12}]},
+  demon:  {name:'魔王',       face:'👹',hp:[140,140],boss:1,moves:[{dmg:12},{str:3,block:10},{dmg:8,hits:3},{dmg:10,vuln:2,weak:2},{dmg:22}]},
+};
+const FLOORS = 12;
+const START_DECK = ['strike','strike','strike','strike','strike','defend','defend','defend','defend','bash'];
+
+/* ===================== ユーティリティ ===================== */
+const rnd = n => Math.floor(Math.random()*n);
+const pick = a => a[rnd(a.length)];
+const between = ([a,b]) => a+rnd(b-a+1);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+const $app = document.getElementById('app');
+const h = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* ===================== ゲーム状態 ===================== */
+let run, bt;   // run: 1周の状態, bt: 戦闘状態
+
+function newRun(){
+  run = {hp:70,max:70,gold:0,floor:0,deck:[...START_DECK],choices:null};
+  nextChoices();
+}
+function nextChoices(){
+  run.floor++;
+  if(run.floor===FLOORS) run.choices=['boss'];
+  else if(run.floor===FLOORS-1) run.choices=['rest'];
+  else{
+    const pool=['battle','battle','battle','event','rest'];
+    if(run.floor>=4) pool.push('elite','elite');
+    const set=new Set();
+    while(set.size<Math.min(3,2+rnd(2))) set.add(pick(pool));
+    run.choices=[...set];
+  }
+  showMap();
+}
+
+/* ===================== 画面: マップ ===================== */
+const NODE = {battle:['⚔️','戦闘'],elite:['💀','強敵'],rest:['🔥','休憩所'],event:['❓','イベント'],boss:['👹','ボス']};
+function header(){
+  return `<header><b>ローグライク・カード</b><span>階層 ${run.floor}/${FLOORS}</span>
+  <span>❤️ ${run.hp}/${run.max}</span><span>🪙 ${run.gold}</span><span>🃏 ${run.deck.length}枚</span></header>`;
+}
+function showMap(){
+  $app.innerHTML = header()+`<h2 class="center">進む道を選んでください</h2><div class="row">`+
+    run.choices.map((c,i)=>`<button class="node" data-i="${i}"><div class="ic">${NODE[c][0]}</div>${NODE[c][1]}</button>`).join('')+
+    `</div><div class="center"><button id="deck">デッキを見る</button></div>`;
+  $app.querySelectorAll('.node').forEach(b=>b.onclick=()=>enter(run.choices[b.dataset.i]));
+  document.getElementById('deck').onclick=()=>showDeck(showMap);
+}
+function showDeck(back){
+  const sorted=[...run.deck].sort();
+  $app.innerHTML = header()+`<h2>デッキ</h2><div class="row">`+sorted.map(id=>cardHtml(id)).join('')+`</div><div class="center"><button id="back">戻る</button></div>`;
+  document.getElementById('back').onclick=back;
+}
+function enter(kind){
+  if(kind==='rest') return restSite();
+  if(kind==='event') return eventSite();
+  startBattle(kind);
+}
+
+/* ===================== 休憩所 / イベント ===================== */
+function restSite(){
+  const heal=Math.ceil(run.max*0.3);
+  $app.innerHTML = header()+`<h2 class="center">🔥 休憩所</h2><div class="row">
+    <button id="heal">休む(HP+${heal})</button><button id="rm">カードを1枚捨てる</button></div>`;
+  document.getElementById('heal').onclick=()=>{run.hp=Math.min(run.max,run.hp+heal);nextChoices()};
+  document.getElementById('rm').onclick=()=>pickCard(run.deck,'捨てるカードを選んでください',i=>{run.deck.splice(i,1);nextChoices()},restSite);
+}
+function pickCard(list,title,onPick,onCancel){
+  $app.innerHTML = header()+`<h2>${title}</h2><div class="row">`+
+    list.map((id,i)=>cardHtml(id,`data-i="${i}"`)).join('')+`</div><div class="center"><button id="cancel">やめる</button></div>`;
+  $app.querySelectorAll('.card').forEach(el=>el.onclick=()=>onPick(+el.dataset.i));
+  document.getElementById('cancel').onclick=onCancel;
+}
+const EVENTS=[
+  {title:'🌳 癒しの泉',text:'澄んだ泉を見つけた。',opts:[
+    ['飲む(HP+15)',()=>{run.hp=Math.min(run.max,run.hp+15)}],['立ち去る',()=>{}]]},
+  {title:'🧙 怪しい商人',text:'「HPと引き換えに、強力なカードをやろう」',opts:[
+    ['HP8を支払い、レアカードを得る',()=>{run.hp=Math.max(1,run.hp-8);run.deck.push(pick(idsByRar('rare')))}],['断る',()=>{}]]},
+  {title:'💰 宝箱',text:'宝箱だ。罠があるかもしれない。',opts:[
+    ['開ける',()=>{if(rnd(2)){run.gold+=40}else{run.hp=Math.max(1,run.hp-10)}}],['無視する',()=>{}]]},
+  {title:'⛲ 古い祭壇',text:'最大HPを捧げれば力が得られるという。',opts:[
+    ['最大HP-6、アンコモンカードを得る',()=>{run.max-=6;run.hp=Math.min(run.hp,run.max);run.deck.push(pick(idsByRar('uncommon')))}],['祈らない',()=>{}]]},
+];
+function eventSite(){
+  const ev=pick(EVENTS);
+  $app.innerHTML = header()+`<h2 class="center">${ev.title}</h2><p class="center">${ev.text}</p><div class="row">`+
+    ev.opts.map((o,i)=>`<button data-i="${i}">${o[0]}</button>`).join('')+`</div>`;
+  $app.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>{ev.opts[b.dataset.i][1]();nextChoices()});
+}
+const idsByRar = r => Object.keys(CARDS).filter(k=>CARDS[k].rar===r);
+
+/* ===================== 戦闘 ===================== */
+function spawn(key){
+  const t=ENEMIES[key];
+  const hp=between(t.hp);
+  return {key,name:t.name,face:t.face,hp,max:hp,block:0,str:0,vuln:0,weak:0,moves:t.moves,mi:0};
+}
+function startBattle(kind){
+  let list;
+  if(kind==='boss') list=['demon'];
+  else if(kind==='elite') list=[pick(['knight','spider'])];
+  else{
+    const pool=['slime','goblin','bat','wolf'];
+    const n=run.floor<3?1+rnd(2):1+rnd(3);
+    list=Array.from({length:n},()=>pick(run.floor<3?pool.slice(0,3):pool));
+  }
+  bt={kind,enemies:list.map(spawn),draw:shuffle([...run.deck]),hand:[],discard:[],exhaust:[],
+      block:0,energy:3,str:0,vuln:0,weak:0,sel:null,turn:0,log:[],over:false};
+  bt.enemies.forEach(e=>e.intent=e.moves[0]);
+  log(`戦闘開始!`);
+  startTurn();
+}
+function log(s){bt.log.push(s);if(bt.log.length>60)bt.log.shift()}
+function drawCards(n){
+  for(let i=0;i<n;i++){
+    if(!bt.draw.length){
+      if(!bt.discard.length) return;
+      bt.draw=shuffle(bt.discard);bt.discard=[];
+    }
+    bt.hand.push(bt.draw.pop());
+  }
+}
+function startTurn(){
+  bt.turn++;bt.block=0;bt.energy=3;bt.sel=null;
+  drawCards(5);
+  renderBattle();
+}
+// ダメージ計算: 筋力加算 → 弱体 ×0.75 → 脆弱 ×1.5
+function calcDmg(base,atkStr,atkWeak,defVuln){
+  let d=base+atkStr;
+  if(atkWeak>0) d=Math.floor(d*0.75);
+  if(defVuln>0) d=Math.floor(d*1.5);
+  return Math.max(0,d);
+}
+function hitEnemy(e,base){
+  let d=calcDmg(base,bt.str,bt.weak,e.vuln);
+  const ab=Math.min(e.block,d);e.block-=ab;d-=ab;
+  e.hp-=d;
+  log(`${e.name}に${d+ab}ダメージ`);
+}
+function hitPlayer(e,base){
+  let d=calcDmg(base,e.str,e.weak,bt.vuln);
+  const ab=Math.min(bt.block,d);bt.block-=ab;d-=ab;
+  run.hp-=d;
+  log(`${e.name}の攻撃で${d+ab}ダメージ`);
+}
+function playCard(hi,target){
+  const id=bt.hand[hi],c=CARDS[id];
+  if(bt.over||c.cost>bt.energy) return;
+  const alive=bt.enemies.filter(e=>e.hp>0);
+  const needsTarget=c.dmg&&!c.aoe||c.vuln||c.weak;
+  if(needsTarget&&target==null){
+    if(alive.length===1) target=bt.enemies.indexOf(alive[0]);
+    else{bt.sel=bt.sel===hi?null:hi;return renderBattle()}
+  }
+  bt.energy-=c.cost;
+  log(`『${c.name}』を使用`);
+  const tg=target!=null?bt.enemies[target]:null;
+  if(c.dmg){
+    const hits=c.hits||1;
+    for(let k=0;k<hits;k++){
+      if(c.aoe) alive.forEach(e=>e.hp>0&&hitEnemy(e,c.dmg));
+      else if(tg.hp>0) hitEnemy(tg,c.dmg);
+    }
+  }
+  if(c.vuln&&tg) tg.vuln+=c.vuln;
+  if(c.weak&&tg) tg.weak+=c.weak;
+  if(c.blk) bt.block+=c.blk;
+  if(c.str) bt.str+=c.str;
+  if(c.energy) bt.energy+=c.energy;
+  if(c.self) run.hp-=c.self;
+  bt.hand.splice(hi,1);
+  (c.exhaust||c.type==='power'?bt.exhaust:bt.discard).push(id);
+  if(c.draw) drawCards(c.draw);
+  bt.sel=null;
+  checkEnd();
+  renderBattle();
+}
+function checkEnd(){
+  if(run.hp<=0){run.hp=0;bt.over='lose';return}
+  if(bt.enemies.every(e=>e.hp<=0)) bt.over='win';
+}
+function endTurn(){
+  if(bt.over) return;
+  bt.discard.push(...bt.hand);bt.hand=[];
+  for(const e of bt.enemies){
+    if(e.hp<=0) continue;
+    e.block=0;
+    const m=e.intent;
+    if(m.block) e.block+=m.block;
+    if(m.str) e.str+=m.str;
+    if(m.dmg) for(let k=0;k<(m.hits||1);k++) hitPlayer(e,m.dmg);
+    if(m.weak) bt.weak+=m.weak;
+    if(m.vuln) bt.vuln+=m.vuln;
+    if(e.vuln>0) e.vuln--;
+    if(e.weak>0) e.weak--;
+    e.mi=(e.mi+1)%e.moves.length;
+    e.intent=e.moves[e.mi];
+    if(run.hp<=0){checkEnd();break}
+  }
+  if(bt.vuln>0) bt.vuln--;
+  if(bt.weak>0) bt.weak--;
+  checkEnd();
+  if(bt.over) return renderBattle();
+  startTurn();
+}
+function intentText(e){
+  const m=e.intent,t=[];
+  if(m.dmg) t.push(`⚔️${calcDmg(m.dmg,e.str,e.weak,bt.vuln)}${m.hits?'×'+m.hits:''}`);
+  if(m.block) t.push(`🛡️${m.block}`);
+  if(m.str) t.push(`💪+${m.str}`);
+  if(m.weak) t.push('弱体付与');
+  if(m.vuln) t.push('脆弱付与');
+  return t.join(' ');
+}
+function cardHtml(id,attr='',extra=''){
+  const c=CARDS[id];
+  return `<div class="card ${c.type} ${c.rar} ${extra}" ${attr}><div class="cost">${c.cost}</div>
+    <div class="nm">${c.name}</div><div class="tx">${cardText(id)}</div>
+    <div class="rar">${{attack:'アタック',skill:'スキル',power:'パワー'}[c.type]}</div></div>`;
+}
+function renderBattle(){
+  const selCard=bt.sel!=null?bt.hand[bt.sel]:null;
+  const status=(o)=>[o.str?`💪${o.str}`:'',o.vuln>0?`脆弱${o.vuln}`:'',o.weak>0?`弱体${o.weak}`:''].filter(Boolean).join(' ');
+  $app.innerHTML = header()+
+  `<div class="row enemies">`+bt.enemies.map((e,i)=>`
+    <div class="unit ${e.hp<=0?'over':''} ${selCard&&e.hp>0?'target':''}" data-e="${i}">
+      <div class="intent">${e.hp>0?intentText(e):'撃破'}</div>
+      <div class="face">${e.face}</div><div>${e.name}</div>
+      <div class="bar"><i style="width:${Math.max(0,e.hp/e.max*100)}%"></i></div>
+      <div class="small">${Math.max(0,e.hp)}/${e.max} ${e.block?'🛡️'+e.block:''}</div>
+      <div class="small">${status(e)}</div></div>`).join('')+`</div>
+  <div class="row"><div class="unit"><div class="face">🧙</div>
+    <div class="bar"><i style="width:${run.hp/run.max*100}%"></i></div>
+    <div class="small">❤️ ${run.hp}/${run.max} ${bt.block?'🛡️'+bt.block:''}</div>
+    <div class="small">${status(bt)}</div></div>
+    <div class="unit"><div>⚡ エネルギー</div><div class="face">${bt.energy}/3</div>
+    <div class="pile">山札${bt.draw.length} 捨て札${bt.discard.length}</div></div></div>
+  <div class="row hand">`+bt.hand.map((id,i)=>
+    cardHtml(id,`data-h="${i}"`,(CARDS[id].cost>bt.energy||bt.over?'off':'')+(bt.sel===i?' sel':''))).join('')+`</div>
+  <div class="center"><button id="end" ${bt.over?'disabled':''}>ターン終了</button></div>
+  <div class="log" id="log">${bt.log.slice(-12).map(h).join('<br>')}</div>`;
+  $app.querySelectorAll('.card').forEach(el=>el.onclick=()=>playCard(+el.dataset.h));
+  $app.querySelectorAll('.unit[data-e]').forEach(el=>el.onclick=()=>{
+    if(bt.sel!=null&&bt.enemies[el.dataset.e].hp>0) playCard(bt.sel,+el.dataset.e);
+  });
+  document.getElementById('end').onclick=endTurn;
+  const lg=document.getElementById('log');lg.scrollTop=lg.scrollHeight;
+  if(bt.over) setTimeout(()=>finishBattle(),700);
+}
+function finishBattle(){
+  if(bt.over==='lose') return gameOver(false);
+  const gold=bt.kind==='elite'?30:bt.kind==='boss'?0:10+rnd(10);
+  run.gold+=gold;
+  if(bt.kind==='boss') return gameOver(true);
+  if(bt.kind==='elite') {run.max+=5;run.hp+=5}
+  reward(gold);
+}
+function reward(gold){
+  const rare=bt.kind==='elite'?0.3:0.08, unc=0.35;
+  const opts=new Set();
+  while(opts.size<3){
+    const r=Math.random();
+    opts.add(pick(idsByRar(r<rare?'rare':r<rare+unc?'uncommon':'common')));
+  }
+  const list=[...opts];
+  $app.innerHTML = header()+`<h2 class="center">勝利! 🪙+${gold}${bt.kind==='elite'?'  最大HP+5':''}</h2>
+    <p class="center">デッキに加えるカードを1枚選んでください</p>
+    <div class="row">`+list.map((id,i)=>cardHtml(id,`data-i="${i}"`)).join('')+`</div>
+    <div class="center"><button id="skip">スキップ</button></div>`;
+  $app.querySelectorAll('.card').forEach(el=>el.onclick=()=>{run.deck.push(list[el.dataset.i]);nextChoices()});
+  document.getElementById('skip').onclick=nextChoices;
+}
+function gameOver(win){
+  $app.innerHTML = `<div class="center"><h1>${win?'🎉 魔王を倒した!クリア!':'💀 力尽きた…'}</h1>
+    <p>到達階層: ${run.floor}/${FLOORS}　デッキ: ${run.deck.length}枚　🪙${run.gold}</p>
+    <button id="again">もう一度挑戦</button></div>`;
+  document.getElementById('again').onclick=newRun;
+}
+
+newRun();
+</script>
+</body>
+</html>
